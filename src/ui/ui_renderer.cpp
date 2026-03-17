@@ -112,6 +112,31 @@ T from_bytes_le(const char* input) {
 
 void load_document();
 
+// Loads all UI font faces into RmlUi. Called both at startup and after a stylesheet
+// reload so the font atlas is rebuilt immediately rather than lazily on the first
+// frame (which would cause a visible hitch).
+static void load_font_faces() {
+    struct FontFace {
+        const char* filename;
+        bool fallback_face;
+    };
+    static constexpr FontFace font_faces[] = {
+        {"LatoLatin-Regular.ttf",  false},
+        {"ChiaroNormal.otf",       false},
+        {"ChiaroBold.otf",         false},
+        {"LatoLatin-Italic.ttf",   false},
+        {"LatoLatin-Bold.ttf",     false},
+        {"LatoLatin-BoldItalic.ttf", false},
+        {"NotoEmoji-Regular.ttf",  true},
+        {"promptfont/promptfont.ttf", false},
+    };
+
+    for (const FontFace& face : font_faces) {
+        auto font = zelda64::get_asset_path(face.filename);
+        Rml::LoadFontFace(font.string(), face.fallback_face);
+    }
+}
+
 class RmlRenderInterface_RT64 : public Rml::RenderInterfaceCompatibility {
     static constexpr uint32_t per_frame_descriptor_set = 0;
     static constexpr uint32_t per_draw_descriptor_set = 1;
@@ -881,6 +906,11 @@ struct UIContext {
 
                 documents.clear();
                 Rml::Factory::RegisterEventListenerInstancer(&event_listener_instancer);
+
+                // Re-register font faces after releasing textures so that the font atlas
+                // is rebuilt immediately instead of lazily on the next rendered frame,
+                // which would cause a visible hitch.
+                load_font_faces();
             }
 
             for (auto& [menu, controller]: menus) {
@@ -1154,27 +1184,7 @@ void init_hook(RT64::RenderInterface* interface, RT64::RenderDevice* device) {
 
     Rml::Debugger::Initialise(ui_context->rml.context);
 
-    {
-        struct FontFace {
-            const char* filename;
-            bool fallback_face;
-        };
-        FontFace font_faces[] = {
-            {"LatoLatin-Regular.ttf", false},
-            {"ChiaroNormal.otf", false},
-            {"ChiaroBold.otf", false},
-            {"LatoLatin-Italic.ttf", false},
-            {"LatoLatin-Bold.ttf", false},
-            {"LatoLatin-BoldItalic.ttf", false},
-            {"NotoEmoji-Regular.ttf", true},
-            {"promptfont/promptfont.ttf", false},
-        };
-
-        for (const FontFace& face : font_faces) {
-            auto font = zelda64::get_asset_path(face.filename);
-            Rml::LoadFontFace(font.string(), face.fallback_face);
-        }
-    }
+    load_font_faces();
 
     ui_context->rml.load_documents();
 }

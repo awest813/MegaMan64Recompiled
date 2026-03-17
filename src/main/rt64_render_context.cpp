@@ -10,6 +10,7 @@
 #include "ultramodern/config.hpp"
 
 #include "zelda_render.h"
+#include "zelda_support.h"
 #include "recomp_ui.h"
 #include "concurrentqueue.h"
 
@@ -404,8 +405,27 @@ RT64::UserConfiguration::Antialiasing zelda64::renderer::RT64MaxMSAA() {
 std::unique_ptr<ultramodern::renderer::RendererContext> zelda64::renderer::create_render_context(uint8_t* rdram, ultramodern::renderer::WindowHandle window_handle, bool developer_mode) {
     auto context = std::make_unique<zelda64::renderer::RT64Context>(rdram, window_handle, developer_mode);
     if (!context->valid()) {
-        fprintf(stderr, "Failed to initialize the graphics renderer. "
-                "Ensure your GPU drivers are up to date and that Vulkan or D3D12 is supported.\n");
+        const char* detail = "An unknown error occurred during graphics initialization.";
+        switch (context->setup_result) {
+            case ultramodern::renderer::SetupResult::DynamicLibrariesNotFound:
+                detail = "Required graphics libraries (Vulkan or D3D12) could not be found.\n"
+                         "Please install the latest GPU drivers and try again.";
+                break;
+            case ultramodern::renderer::SetupResult::InvalidGraphicsAPI:
+            case ultramodern::renderer::SetupResult::GraphicsAPINotFound:
+                detail = "No supported graphics API was detected.\n"
+                         "Please update your GPU drivers and ensure Vulkan or D3D12 is available.";
+                break;
+            case ultramodern::renderer::SetupResult::GraphicsDeviceNotFound:
+                detail = "No compatible GPU was found.\n"
+                         "Please ensure your GPU supports Vulkan or D3D12.";
+                break;
+            default:
+                break;
+        }
+        std::string full_message = std::string("Failed to initialize the graphics renderer.\n\n") + detail;
+        fprintf(stderr, "%s\n", full_message.c_str());
+        zelda64::show_error_message_box("Graphics Initialization Failed", full_message.c_str());
     }
     return context;
 }

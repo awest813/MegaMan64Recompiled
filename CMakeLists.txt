@@ -373,3 +373,6 @@ build_pixel_shader(MegaMan64Recompiled "shaders/InterfacePS.hlsl" "shaders/Inter
 target_sources(MegaMan64Recompiled PRIVATE ${SOURCES})
 
 set_property(TARGET MegaMan64Recompiled PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+# Unit tests (self-contained; do not depend on the heavy game or rendering libraries)
+add_subdirectory(tests)

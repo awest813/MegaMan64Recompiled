@@ -61,7 +61,10 @@ recomp::InputField& recomp::get_input_binding(GameInput input, size_t binding_in
         return cur_input_mapping[binding_index];
     }
     else {
+        // Reset the dummy before each use to prevent stale state from previous out-of-bounds
+        // writes (callers must not rely on the returned reference persisting any value).
         static recomp::InputField dummy_field = {};
+        dummy_field = {};
         return dummy_field;
     }
 }
