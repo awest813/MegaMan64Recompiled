@@ -107,7 +107,9 @@ static std::vector<char> read_file(const std::filesystem::path& filepath) {
 
 template <typename T>
 T from_bytes_le(const char* input) {
-    return *reinterpret_cast<const T*>(input);
+    T result;
+    memcpy(&result, input, sizeof(T));
+    return result;
 }
 
 void load_document();

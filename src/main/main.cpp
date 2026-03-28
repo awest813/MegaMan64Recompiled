@@ -117,7 +117,7 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
     SDL_MetalView view = SDL_Metal_CreateView(window);
     return ultramodern::renderer::WindowHandle{ wmInfo.info.cocoa.window,  SDL_Metal_GetLayer(view) };
 #else
-    static_assert(false && "Unimplemented");
+#error "Unimplemented platform"
 #endif
 }
 
@@ -285,7 +285,6 @@ void reset_audio(uint32_t output_freq) {
     update_audio_converter();
 }
 
-//extern RspUcodeFunc njpgdspMain;
 extern RspUcodeFunc aspMain;
 
 RspUcodeFunc* get_rsp_microcode(const OSTask* task) {

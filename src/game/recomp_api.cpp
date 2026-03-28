@@ -47,7 +47,7 @@ extern "C" void recomp_get_mouse_deltas(uint8_t* rdram, recomp_context* ctx) {
 
 extern "C" void recomp_powf(uint8_t* rdram, recomp_context* ctx) {
     float a = _arg<0, float>(rdram, ctx);
-    float b = ctx->f14.fl; //_arg<1, float>(rdram, ctx);
+    float b = _arg<1, float>(rdram, ctx);
 
     _return(ctx, std::pow(a, b));
 }
@@ -150,8 +150,7 @@ extern "C" void recomp_get_camera_inputs(uint8_t* rdram, recomp_context* ctx) {
     float* x_out = _arg<0, float*>(rdram, ctx);
     float* y_out = _arg<1, float*>(rdram, ctx);
 
-    // TODO expose this in the menu
-    constexpr float radial_deadzone = 0.05f;
+    float radial_deadzone = (float)recomp::get_joystick_deadzone() / 100.0f;
 
     float x, y;
 
@@ -167,8 +166,8 @@ extern "C" void recomp_get_camera_inputs(uint8_t* rdram, recomp_context* ctx) {
         float x_normalized = x / magnitude;
         float y_normalized = y / magnitude;
 
-        *x_out = x_normalized * ((magnitude - radial_deadzone) / (1 - radial_deadzone));
-        *y_out = y_normalized * ((magnitude - radial_deadzone) / (1 - radial_deadzone));
+        *x_out = x_normalized * ((magnitude - radial_deadzone) / (1.0f - radial_deadzone));
+        *y_out = y_normalized * ((magnitude - radial_deadzone) / (1.0f - radial_deadzone));
     }
 }
 
