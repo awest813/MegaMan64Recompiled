@@ -12,7 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-everything -W4")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-everything /W4")
 endif()
 
 # Opt out of constexpr mutex constructor on windows to prevent vcredist issues
@@ -51,6 +51,24 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/lib/RmlUi)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime)
 
+option(MM64_ENABLE_PATCH_OVERLAYS "Build optional recompiled patch overlays" OFF)
+
+if(MM64_ENABLE_PATCH_OVERLAYS)
+    if(WIN32)
+        if(EXISTS "${CMAKE_SOURCE_DIR}/build-tools/N64Recomp.exe")
+            set(N64RECOMP_EXE "${CMAKE_SOURCE_DIR}/build-tools/N64Recomp.exe")
+        else()
+            set(N64RECOMP_EXE "${CMAKE_SOURCE_DIR}/N64Recomp.exe")
+        endif()
+    else()
+        if(EXISTS "${CMAKE_SOURCE_DIR}/build-tools/N64Recomp")
+            set(N64RECOMP_EXE "${CMAKE_SOURCE_DIR}/build-tools/N64Recomp")
+        else()
+            set(N64RECOMP_EXE "${CMAKE_SOURCE_DIR}/N64Recomp")
+        endif()
+    endif()
+endif()
+
 target_include_directories(rt64 PRIVATE ${CMAKE_BINARY_DIR}/rt64/src)
 
 # RecompiledFuncs - Library containing the primary recompiler output
@@ -75,75 +93,79 @@ file(GLOB FUNC_CXX_SOURCES ${CMAKE_SOURCE_DIR}/RecompiledFuncs/*.cpp)
 
 target_sources(RecompiledFuncs PRIVATE ${FUNC_C_SOURCES} ${FUNC_CXX_SOURCES})
 
-# PatchesLib - Library containing the recompiled output for any custom function patches
-add_library(PatchesLib STATIC)
+if(MM64_ENABLE_PATCH_OVERLAYS)
+    # PatchesLib - Library containing the recompiled output for any custom function patches
+    add_library(PatchesLib STATIC)
 
-target_compile_options(PatchesLib PRIVATE
-    # -Wno-unused-but-set-variable
-    -fno-strict-aliasing
-    -Wno-unused-variable
-    -Wno-implicit-function-declaration
-)
+    target_compile_options(PatchesLib PRIVATE
+        # -Wno-unused-but-set-variable
+        -fno-strict-aliasing
+        -Wno-unused-variable
+        -Wno-implicit-function-declaration
+    )
 
-target_include_directories(PatchesLib PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/ultramodern/include
-    ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/librecomp/include
-    ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/N64Recomp/include
-)
+    target_include_directories(PatchesLib PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/ultramodern/include
+        ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/librecomp/include
+        ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/N64Recomp/include
+    )
 
-target_sources(PatchesLib PRIVATE
-    ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c
-    ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.c
-)
+    target_sources(PatchesLib PRIVATE
+        ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c
+        ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.c
+    )
 
-set_source_files_properties(${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c PROPERTIES COMPILE_FLAGS -fno-strict-aliasing)
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c PROPERTIES COMPILE_FLAGS -fno-strict-aliasing)
 
-# Build patches elf
-if(NOT DEFINED PATCHES_C_COMPILER)
-    set(PATCHES_C_COMPILER clang)
-endif()
+    # Build patches elf
+    if(NOT DEFINED PATCHES_C_COMPILER)
+        set(PATCHES_C_COMPILER clang)
+    endif()
 
-if(NOT DEFINED PATCHES_LD)
-    set(PATCHES_LD ld.lld)
-endif()
+    if(NOT DEFINED PATCHES_LD)
+        set(PATCHES_LD ld.lld)
+    endif()
 
-if(NOT DEFINED PATCHES_OBJCOPY)
-    set(PATCHES_OBJCOPY llvm-objcopy)
-endif()
+    if(NOT DEFINED PATCHES_OBJCOPY)
+        set(PATCHES_OBJCOPY llvm-objcopy)
+    endif()
 
-# Build patches.elf using native Windows build script (no bash/make dependency)
-if(WIN32)
-    add_custom_target(PatchesBin
-        COMMAND powershell -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/patches/build_patches.ps1
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/patches
-        BYPRODUCTS ${CMAKE_SOURCE_DIR}/patches/patches.elf
+    # Build patches.elf using native Windows build script (no bash/make dependency)
+    if(WIN32)
+        add_custom_target(PatchesBin
+            COMMAND powershell -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/patches/build_patches.ps1
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/patches
+            BYPRODUCTS ${CMAKE_SOURCE_DIR}/patches/patches.elf
+        )
+    else()
+        add_custom_target(PatchesBin
+            COMMAND ${CMAKE_COMMAND} -E env CC=${PATCHES_C_COMPILER} LD=${PATCHES_LD} bash -lc "make -f Makefile"
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/patches
+            BYPRODUCTS ${CMAKE_SOURCE_DIR}/patches/patches.elf
+        )
+    endif()
+
+    # Generate patches_bin.c from patches.bin
+    add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.c
+        COMMAND file_to_c ${CMAKE_SOURCE_DIR}/patches/patches.bin mm_patches_bin ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.c ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.h
+        DEPENDS ${CMAKE_SOURCE_DIR}/patches/patches.bin
+    )
+
+    # Recompile patches elf into patches.c and patches.bin
+    add_custom_command(OUTPUT
+                           ${CMAKE_SOURCE_DIR}/patches/patches.bin
+                           ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c
+                           ${CMAKE_SOURCE_DIR}/RecompiledPatches/recomp_overlays.inl
+                           ${CMAKE_SOURCE_DIR}/RecompiledPatches/funcs.h
+                       COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/RecompiledPatches
+                       COMMAND ${N64RECOMP_EXE} ${CMAKE_SOURCE_DIR}/patches.toml
+                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                       DEPENDS ${CMAKE_SOURCE_DIR}/patches/patches.elf
     )
 else()
-    add_custom_target(PatchesBin
-        COMMAND ${CMAKE_COMMAND} -E env CC=${PATCHES_C_COMPILER} LD=${PATCHES_LD} bash -lc "make -f Makefile"
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/patches
-        BYPRODUCTS ${CMAKE_SOURCE_DIR}/patches/patches.elf
-    )
+    add_library(PatchesLib INTERFACE)
 endif()
-
-# Generate patches_bin.c from patches.bin
-add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.c
-    COMMAND file_to_c ${CMAKE_SOURCE_DIR}/patches/patches.bin mm_patches_bin ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.c ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.h
-    DEPENDS ${CMAKE_SOURCE_DIR}/patches/patches.bin
-)
-
-# Recompile patches elf into patches.c and patches.bin
-add_custom_command(OUTPUT
-                       ${CMAKE_SOURCE_DIR}/patches/patches.bin
-                       ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c
-                       ${CMAKE_SOURCE_DIR}/RecompiledPatches/recomp_overlays.inl
-                       ${CMAKE_SOURCE_DIR}/RecompiledPatches/funcs.h
-                   # TODO: Look into why modifying patches requires two builds to take
-                   #COMMAND ./N64Recomp patches.toml
-                   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                   DEPENDS ${CMAKE_SOURCE_DIR}/patches/patches.elf
-)
 
 
 # Download controller db file for controller support via SDL2
@@ -273,7 +295,9 @@ if (WIN32)
             LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup"
     )
 
-    target_sources(MegaMan64Recompiled PRIVATE ${CMAKE_SOURCE_DIR}/icons/app.rc)
+    if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC"))
+        target_sources(MegaMan64Recompiled PRIVATE ${CMAKE_SOURCE_DIR}/icons/app.rc)
+    endif()
     target_link_libraries(MegaMan64Recompiled PRIVATE SDL2)
 endif()
 

@@ -1,4 +1,5 @@
 # PowerShell script to build patches.elf
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $CC = "C:\Program Files\LLVM\bin\clang.exe"
 $LD = "C:\Program Files\LLVM\bin\ld.lld.exe"
 
@@ -42,10 +43,13 @@ $LDFLAGS = @(
     "--emit-relocs"
 )
 
+Push-Location $ScriptDir
+
 Write-Host "Compiling print.c..."
 & $CC @CFLAGS @CPPFLAGS "print.c" "-MMD" "-MF" "print.d" "-c" "-o" "print.o"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Failed to compile print.c"
+    Pop-Location
     exit 1
 }
 
@@ -53,7 +57,9 @@ Write-Host "Linking patches.elf..."
 & $LD "print.o" @LDFLAGS "-o" "patches.elf"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Failed to link patches.elf"
+    Pop-Location
     exit 1
 }
 
 Write-Host "Build successful!"
+Pop-Location

@@ -6,7 +6,8 @@
 #include <optional>
 #include <string>
 
-struct OSThread;
+#include "ultramodern/ultra64.h"
+
 struct SDL_Window;
 
 namespace zelda64 {

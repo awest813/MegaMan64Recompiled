@@ -1,6 +1,7 @@
 @echo off
 REM Build patches.elf for Windows (replacement for Makefile)
 setlocal enabledelayedexpansion
+pushd "%~dp0"
 
 REM Set compiler and linker with absolute paths
 set CC="C:\Program Files\LLVM\bin\clang.exe"
@@ -16,6 +17,7 @@ echo Compiling print.c...
 %CC% %CFLAGS% %CPPFLAGS% print.c -MMD -MF print.d -c -o print.o
 if errorlevel 1 (
     echo Failed to compile print.c
+    popd
     exit /b 1
 )
 
@@ -24,8 +26,10 @@ echo Linking patches.elf...
 %LD% print.o %LDFLAGS% -o patches.elf
 if errorlevel 1 (
     echo Failed to link patches.elf
+    popd
     exit /b 1
 )
 
 echo Build successful!
+popd
 endlocal

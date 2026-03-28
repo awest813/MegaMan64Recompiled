@@ -262,6 +262,8 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
             float x = event->csensor.data[0] * rad_to_deg;
             float y = event->csensor.data[1] * rad_to_deg;
             float z = event->csensor.data[2] * rad_to_deg;
+            float rot_x = 0.0f;
+            float rot_y = 0.0f;
             {
                 std::lock_guard lock{ InputState.cur_controllers_mutex };
                 ControllerState& state = InputState.controller_states[event->csensor.which];
@@ -270,8 +272,6 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
                 state.motion.ProcessMotion(x, y, z, state.latest_accelerometer[0], state.latest_accelerometer[1], state.latest_accelerometer[2], delta_ms * 0.001f);
                 state.prev_gyro_timestamp = cur_timestamp;
 
-                float rot_x = 0.0f;
-                float rot_y = 0.0f;
                 state.motion.GetPlayerSpaceGyro(rot_x, rot_y);
             }
 
