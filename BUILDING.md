@@ -23,6 +23,12 @@ For Linux the instructions for Ubuntu are provided, but you can find the equival
 sudo apt-get install cmake ninja-build libsdl2-dev libgtk-3-dev lld llvm clang
 ```
 
+On Ubuntu 24.04, the default `clang` may use GCC 14 libstdc++ paths. If CMake reports `cannot find -lstdc++` during the compiler test, install the matching dev package:
+
+```bash
+sudo apt-get install g++-14
+```
+
 ### Windows
 You will need to install [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/).
 In the setup process you'll need to select the following options and tools for installation:
@@ -46,7 +52,7 @@ Now that you have the required files, you must build [N64Recomp](https://github.
 After that, go back to the repository root, and run the following commands:
 ```bash
 ./N64Recomp us.rev1.toml
-./RSPRecomp aspMain.us.rev1.toml
+./RSPRecomp asp.toml
 ```
 
 ## 5. Building the Project
