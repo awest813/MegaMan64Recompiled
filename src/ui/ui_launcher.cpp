@@ -1,4 +1,5 @@
 #include "recomp_ui.h"
+#include "launcher_bootstrap.hpp"
 #include "zelda_config.h"
 #include "zelda_support.h"
 #include "librecomp/game.hpp"
@@ -16,43 +17,16 @@ bool mm_rom_valid = false;
 extern std::vector<recomp::GameEntry> supported_games;
 
 static bool try_cache_local_rom() {
-	const std::array<std::filesystem::path, 4> candidate_paths = {
-		std::filesystem::path{"megaman64.us.z64"},
-		std::filesystem::path{"Mega Man 64 (USA).z64"},
-		std::filesystem::path{"megaman.n64.us.1.0.z64"},
-		std::filesystem::path{"Mega Man 64.z64"},
-	};
-
-	for (const auto& candidate : candidate_paths) {
-		if (!std::filesystem::exists(candidate)) {
-			continue;
+	return recompui::launcher::try_cache_local_rom(
+		std::filesystem::current_path(),
+		[](const std::filesystem::path& rom_path) {
+			return recomp::select_rom(rom_path, supported_games[0].game_id) == recomp::RomValidationError::Good;
 		}
-
-		if (recomp::select_rom(candidate, supported_games[0].game_id) == recomp::RomValidationError::Good) {
-			return true;
-		}
-	}
-
-	for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path())) {
-		if (!entry.is_regular_file()) {
-			continue;
-		}
-
-		const std::filesystem::path extension = entry.path().extension();
-		if (extension != ".z64" && extension != ".n64" && extension != ".v64") {
-			continue;
-		}
-
-		if (recomp::select_rom(entry.path(), supported_games[0].game_id) == recomp::RomValidationError::Good) {
-			return true;
-		}
-	}
-
-	return false;
+	);
 }
 
 static void queue_autostart_game() {
-	if (!mm_rom_valid || ultramodern::is_game_started()) {
+	if (!recompui::launcher::should_autostart_game(mm_rom_valid, ultramodern::is_game_started())) {
 		return;
 	}
 
@@ -63,7 +37,7 @@ static void queue_autostart_game() {
 }
 
 void recompui::autostart_launcher_game() {
-	if (!mm_rom_valid || ultramodern::is_game_started()) {
+	if (!recompui::launcher::should_autostart_game(mm_rom_valid, ultramodern::is_game_started())) {
 		return;
 	}
 

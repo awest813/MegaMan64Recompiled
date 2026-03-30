@@ -230,6 +230,7 @@ set (SOURCES
 
     ${CMAKE_SOURCE_DIR}/src/ui/ui_renderer.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_launcher.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_launcher_bootstrap.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_config.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_color_hack.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_rml_hacks.cpp
@@ -241,6 +242,13 @@ set (SOURCES
 
 if (APPLE)
     list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/main/support_apple.mm)
+endif()
+
+if (MSVC)
+    set_source_files_properties(
+        ${CMAKE_SOURCE_DIR}/rsp/aspMain.cpp
+        PROPERTIES COMPILE_OPTIONS "/wd4305"
+    )
 endif()
 
 target_include_directories(MegaMan64Recompiled PRIVATE
@@ -449,4 +457,19 @@ if(MM64_BUILD_TESTS)
     target_include_directories(mm64_test_yaz0 PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_compile_features(mm64_test_yaz0 PRIVATE cxx_std_20)
     add_test(NAME yaz0_decompress COMMAND mm64_test_yaz0)
+
+    add_executable(mm64_test_paths
+        ${CMAKE_SOURCE_DIR}/tests/test_mm64_paths.cpp
+    )
+    target_include_directories(mm64_test_paths PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_compile_features(mm64_test_paths PRIVATE cxx_std_20)
+    add_test(NAME path_layout_smoke COMMAND mm64_test_paths)
+
+    add_executable(mm64_test_launcher_bootstrap
+        ${CMAKE_SOURCE_DIR}/tests/test_launcher_bootstrap.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/ui_launcher_bootstrap.cpp
+    )
+    target_include_directories(mm64_test_launcher_bootstrap PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_compile_features(mm64_test_launcher_bootstrap PRIVATE cxx_std_20)
+    add_test(NAME launcher_bootstrap_smoke COMMAND mm64_test_launcher_bootstrap)
 endif()

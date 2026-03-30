@@ -3,6 +3,7 @@
 #include "zelda_sound.h"
 #include "zelda_render.h"
 #include "zelda_support.h"
+#include "mm64_paths.hpp"
 #include "ultramodern/config.hpp"
 #include "librecomp/files.hpp"
 #include <cstdio>
@@ -20,11 +21,6 @@
 #elif defined(__APPLE__)
 #include "apple/rt64_apple.h"
 #endif
-
-constexpr std::u8string_view general_filename = u8"general.json";
-constexpr std::u8string_view graphics_filename = u8"graphics.json";
-constexpr std::u8string_view controls_filename = u8"controls.json";
-constexpr std::u8string_view sound_filename = u8"sound.json";
 
 constexpr auto res_default            = ultramodern::renderer::Resolution::Auto;
 constexpr auto hr_default             = ultramodern::renderer::HUDRatioMode::Clamp16x9;
@@ -162,14 +158,14 @@ std::filesystem::path zelda64::get_app_folder_path() {
 
    auto compute_path = []() -> std::filesystem::path {
        // directly check for portable.txt (windows and native linux binary)
-       if (std::filesystem::exists("portable.txt")) {
+       if (zelda64::paths::has_portable_mode_marker(std::filesystem::current_path())) {
            return std::filesystem::current_path();
        }
 
 #if defined(__APPLE__)
        // Check for portable file in the directory containing the app bundle.
        const auto app_bundle_path = zelda64::get_bundle_directory().parent_path();
-       if (std::filesystem::exists(app_bundle_path / "portable.txt")) {
+       if (zelda64::paths::has_portable_mode_marker(app_bundle_path)) {
            return app_bundle_path;
        }
 #endif
@@ -518,10 +514,10 @@ void zelda64::load_config() {
     detect_steam_deck();
 
     std::filesystem::path recomp_dir = zelda64::get_app_folder_path();
-    std::filesystem::path general_path = recomp_dir / general_filename;
-    std::filesystem::path graphics_path = recomp_dir / graphics_filename;
-    std::filesystem::path controls_path = recomp_dir / controls_filename;
-    std::filesystem::path sound_path = recomp_dir / sound_filename;
+    std::filesystem::path general_path = zelda64::paths::config_file_path(recomp_dir, zelda64::paths::general_config_filename);
+    std::filesystem::path graphics_path = zelda64::paths::config_file_path(recomp_dir, zelda64::paths::graphics_config_filename);
+    std::filesystem::path controls_path = zelda64::paths::config_file_path(recomp_dir, zelda64::paths::controls_config_filename);
+    std::filesystem::path sound_path = zelda64::paths::config_file_path(recomp_dir, zelda64::paths::sound_config_filename);
 
     std::string load_error_text;
     bool load_error_any = false;
@@ -599,21 +595,26 @@ void zelda64::save_config() {
         save_error_text.append(line);
     };
 
-    if (!save_general_config(recomp_dir / general_filename)) {
+    const std::filesystem::path general_path = zelda64::paths::config_file_path(recomp_dir, zelda64::paths::general_config_filename);
+    const std::filesystem::path graphics_path = zelda64::paths::config_file_path(recomp_dir, zelda64::paths::graphics_config_filename);
+    const std::filesystem::path controls_path = zelda64::paths::config_file_path(recomp_dir, zelda64::paths::controls_config_filename);
+    const std::filesystem::path sound_path = zelda64::paths::config_file_path(recomp_dir, zelda64::paths::sound_config_filename);
+
+    if (!save_general_config(general_path)) {
         fprintf(stderr, "Warning: failed to save general config\n");
-        append_save_error("Could not save general settings to:\n" + (recomp_dir / general_filename).string());
+        append_save_error("Could not save general settings to:\n" + general_path.string());
     }
-    if (!save_graphics_config(recomp_dir / graphics_filename)) {
+    if (!save_graphics_config(graphics_path)) {
         fprintf(stderr, "Warning: failed to save graphics config\n");
-        append_save_error("Could not save graphics settings to:\n" + (recomp_dir / graphics_filename).string());
+        append_save_error("Could not save graphics settings to:\n" + graphics_path.string());
     }
-    if (!save_controls_config(recomp_dir / controls_filename)) {
+    if (!save_controls_config(controls_path)) {
         fprintf(stderr, "Warning: failed to save controls config\n");
-        append_save_error("Could not save control bindings to:\n" + (recomp_dir / controls_filename).string());
+        append_save_error("Could not save control bindings to:\n" + controls_path.string());
     }
-    if (!save_sound_config(recomp_dir / sound_filename)) {
+    if (!save_sound_config(sound_path)) {
         fprintf(stderr, "Warning: failed to save sound config\n");
-        append_save_error("Could not save sound settings to:\n" + (recomp_dir / sound_filename).string());
+        append_save_error("Could not save sound settings to:\n" + sound_path.string());
     }
 
     flush_config_error_message(save_error_text, save_error_any);
