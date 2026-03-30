@@ -32,6 +32,7 @@ The following issues were identified and fixed during a comprehensive codebase a
 | High | `src/main/rt64_render_context.cpp` | `create_render_context()` only logged GPU init failure to stderr. Now also shows a user-facing message box via `zelda64::show_error_message_box()`. |
 | Medium | `src/main/main.cpp` | `preload_executable()` was a no-op stub on Linux/macOS, printing a spurious "Failed to preload" warning. Now implemented via `mmap` + `mlock` with a `posix_madvise(MADV_WILLNEED)` fallback when locking privileges are unavailable. |
 | Low | `src/game/quicksaving.cpp` | Removed two debug `printf` statements that leaked internal thread IDs to stdout in release builds. |
+| High | `src/game/config.cpp` | Config load/save failures were only visible on stderr. User-facing message boxes now report failed default saves after load, full save failures from the UI, and missing config directory. |
 
 ---
 
@@ -114,7 +115,7 @@ Goal: Modernize the user experience without altering the game's core gameplay.
 
 | Priority | Item | Description |
 |----------|------|-------------|
-| High | Config error surfacing | `load_config()`/`save_config()` failures are logged to stderr. Show critical config errors in the UI. |
+| ~~High~~ | ~~Config error surfacing~~ | ~~`load_config()`/`save_config()` failures are logged to stderr. Show critical config errors in the UI.~~ Fixed: batched dialogs via `zelda64::show_error_message_box()`. |
 | Medium | Font atlas caching | `ui_renderer.cpp` rebuilds the font atlas on every UI reload. Cache to eliminate hitching. |
 | ~~Medium~~ | ~~Config path caching~~ | ~~`get_app_folder_path()` calls `getenv()` on every invocation. Cache the result.~~ Fixed: result is cached via a static `bool cached` flag. |
 | Medium | Controller binding UI | Allow re-binding all N64 buttons per-port with visual feedback. |

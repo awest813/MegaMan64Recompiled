@@ -9,6 +9,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <string>
+#include <string_view>
 
 #if defined(_WIN32)
 #include <Shlobj.h>
@@ -34,6 +36,24 @@ constexpr auto hpfb_default           = ultramodern::renderer::HighPrecisionFram
 constexpr int ds_default              = 1;
 constexpr int rr_manual_default       = 60;
 constexpr bool developer_mode_default = false;
+
+namespace {
+
+// SDL message boxes have practical length limits; keep the body bounded.
+constexpr size_t k_config_error_msg_max = 1800;
+
+void flush_config_error_message(std::string& message, bool any_line) {
+    if (!any_line) {
+        return;
+    }
+    if (message.size() > k_config_error_msg_max) {
+        message.resize(k_config_error_msg_max);
+        message += "\n...[truncated]";
+    }
+    zelda64::show_error_message_box("Configuration", message.c_str());
+}
+
+} // namespace
 
 static bool is_steam_deck = false;
 
@@ -503,6 +523,16 @@ void zelda64::load_config() {
     std::filesystem::path controls_path = recomp_dir / controls_filename;
     std::filesystem::path sound_path = recomp_dir / sound_filename;
 
+    std::string load_error_text;
+    bool load_error_any = false;
+    auto append_load_error = [&](std::string_view line) {
+        if (load_error_any) {
+            load_error_text.push_back('\n');
+        }
+        load_error_any = true;
+        load_error_text.append(line);
+    };
+
     if (!recomp_dir.empty()) {
         std::filesystem::create_directories(recomp_dir);
     }
@@ -513,6 +543,7 @@ void zelda64::load_config() {
         if (!save_general_config(general_path)) {
             fprintf(stderr, "Warning: failed to save default general config to %s\n",
                     general_path.string().c_str());
+            append_load_error("Could not save default general settings to:\n" + general_path.string());
         }
     }
 
@@ -521,6 +552,7 @@ void zelda64::load_config() {
         if (!save_graphics_config(graphics_path)) {
             fprintf(stderr, "Warning: failed to save default graphics config to %s\n",
                     graphics_path.string().c_str());
+            append_load_error("Could not save default graphics settings to:\n" + graphics_path.string());
         }
     }
 
@@ -529,6 +561,7 @@ void zelda64::load_config() {
         if (!save_controls_config(controls_path)) {
             fprintf(stderr, "Warning: failed to save default controls config to %s\n",
                     controls_path.string().c_str());
+            append_load_error("Could not save default control bindings to:\n" + controls_path.string());
         }
     }
 
@@ -537,29 +570,51 @@ void zelda64::load_config() {
         if (!save_sound_config(sound_path)) {
             fprintf(stderr, "Warning: failed to save default sound config to %s\n",
                     sound_path.string().c_str());
+            append_load_error("Could not save default sound settings to:\n" + sound_path.string());
         }
     }
+
+    flush_config_error_message(load_error_text, load_error_any);
 }
 
 void zelda64::save_config() {
     std::filesystem::path recomp_dir = zelda64::get_app_folder_path();
 
     if (recomp_dir.empty()) {
+        zelda64::show_error_message_box(
+            "Configuration",
+            "No configuration folder is available, so settings cannot be saved.");
         return;
     }
 
     std::filesystem::create_directories(recomp_dir);
 
+    std::string save_error_text;
+    bool save_error_any = false;
+    auto append_save_error = [&](std::string_view line) {
+        if (save_error_any) {
+            save_error_text.push_back('\n');
+        }
+        save_error_any = true;
+        save_error_text.append(line);
+    };
+
     if (!save_general_config(recomp_dir / general_filename)) {
         fprintf(stderr, "Warning: failed to save general config\n");
+        append_save_error("Could not save general settings to:\n" + (recomp_dir / general_filename).string());
     }
     if (!save_graphics_config(recomp_dir / graphics_filename)) {
         fprintf(stderr, "Warning: failed to save graphics config\n");
+        append_save_error("Could not save graphics settings to:\n" + (recomp_dir / graphics_filename).string());
     }
     if (!save_controls_config(recomp_dir / controls_filename)) {
         fprintf(stderr, "Warning: failed to save controls config\n");
+        append_save_error("Could not save control bindings to:\n" + (recomp_dir / controls_filename).string());
     }
     if (!save_sound_config(recomp_dir / sound_filename)) {
         fprintf(stderr, "Warning: failed to save sound config\n");
+        append_save_error("Could not save sound settings to:\n" + (recomp_dir / sound_filename).string());
     }
+
+    flush_config_error_message(save_error_text, save_error_any);
 }
