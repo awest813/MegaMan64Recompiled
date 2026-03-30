@@ -26,7 +26,6 @@ This project is currently in **alpha** and under active development.
 
 ## Known Limitations
 
-- Quicksave / quickload is currently disabled while related stability work is finished
 - Widescreen/HUD parity improvements are still in progress
 - Texture packs are auto-enabled; per-pack enable/disable UI is not implemented yet
 

@@ -1,7 +1,3 @@
-// Quicksaving is disabled for now
-
-#if 0
-
 #include "librecomp/helpers.hpp"
 #include "librecomp/input.hpp"
 #include "ultramodern/ultramodern.hpp"
@@ -13,12 +9,16 @@ enum class QuicksaveAction {
 };
 
 std::atomic<QuicksaveAction> cur_quicksave_action = QuicksaveAction::None;
+std::atomic<bool> has_quicksave{false};
 
 void zelda64::quicksave_save() {
     cur_quicksave_action.store(QuicksaveAction::Save);
 }
 
 void zelda64::quicksave_load() {
+    if (!has_quicksave.load()) {
+        return;
+    }
     cur_quicksave_action.store(QuicksaveAction::Load);
 }
 
@@ -98,9 +98,12 @@ extern "C" void recomp_handle_quicksave_actions_main(uint8_t* rdram, recomp_cont
         }
 
         if (action == QuicksaveAction::Save) {
+            save_context(ctx);
             std::copy(rdram, rdram + ultramodern::rdram_size, saved_rdram);
+            has_quicksave.store(true);
         }
         else if (action == QuicksaveAction::Load) {
+            load_context(ctx);
             std::copy(saved_rdram, saved_rdram + ultramodern::rdram_size, rdram);
         }
         else {
@@ -117,5 +120,3 @@ extern "C" void recomp_handle_quicksave_actions_main(uint8_t* rdram, recomp_cont
         }
     }
 }
-
-#endif

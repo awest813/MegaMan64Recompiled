@@ -51,7 +51,7 @@ Goal: Ensure the recompiled version is behaviorally identical to the original N6
 | Priority | Item | Description |
 |----------|------|-------------|
 | High | Flashram save/load | Verify existing Flashram save/load path works correctly for all MM64 save slots. |
-| High | Quicksave re-enable | `quicksaving.cpp` is gated behind `#if 0`. The `thread_local` context bug (L5) must be fixed before re-enabling: each thread gets its own `saved_context`, breaking cross-thread save/load. |
+| High | Quicksave re-enable | Fixed: removed `#if 0` gate, added main-thread context save/load, and guarded load against missing save state. |
 | Medium | Save migration | Ensure saves from original N64 hardware can be imported. |
 
 ---
