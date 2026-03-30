@@ -91,6 +91,8 @@ RT64::UserConfiguration::AspectRatio to_rt64(ultramodern::renderer::AspectRatio 
         case ultramodern::renderer::AspectRatio::OptionCount:
             return RT64::UserConfiguration::AspectRatio::OptionCount;
     }
+
+    return RT64::UserConfiguration::AspectRatio::Original;
 }
 
 RT64::UserConfiguration::Antialiasing to_rt64(ultramodern::renderer::Antialiasing option) {
@@ -106,6 +108,8 @@ RT64::UserConfiguration::Antialiasing to_rt64(ultramodern::renderer::Antialiasin
         case ultramodern::renderer::Antialiasing::OptionCount:
             return RT64::UserConfiguration::Antialiasing::OptionCount;
     }
+
+    return RT64::UserConfiguration::Antialiasing::None;
 }
 
 RT64::UserConfiguration::RefreshRate to_rt64(ultramodern::renderer::RefreshRate option) {
@@ -119,6 +123,8 @@ RT64::UserConfiguration::RefreshRate to_rt64(ultramodern::renderer::RefreshRate 
         case ultramodern::renderer::RefreshRate::OptionCount:
             return RT64::UserConfiguration::RefreshRate::OptionCount;
     }
+
+    return RT64::UserConfiguration::RefreshRate::Original;
 }
 
 RT64::UserConfiguration::InternalColorFormat to_rt64(ultramodern::renderer::HighPrecisionFramebuffer option) {
@@ -132,6 +138,8 @@ RT64::UserConfiguration::InternalColorFormat to_rt64(ultramodern::renderer::High
         case ultramodern::renderer::HighPrecisionFramebuffer::OptionCount:
             return RT64::UserConfiguration::InternalColorFormat::OptionCount;
     }
+
+    return RT64::UserConfiguration::InternalColorFormat::Automatic;
 }
 
 void set_application_user_config(RT64::Application* application, const ultramodern::renderer::GraphicsConfig& config) {

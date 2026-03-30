@@ -13,6 +13,9 @@ namespace zelda64 {
     // TODO: Move loading configs to the runtime once we have a way to allow per-project customization.
     void load_config();
     void save_config();
+
+    void quicksave_save();
+    void quicksave_load();
     
     void reset_input_bindings();
     void reset_cont_input_bindings();

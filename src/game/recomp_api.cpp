@@ -47,7 +47,7 @@ extern "C" void recomp_get_mouse_deltas(uint8_t* rdram, recomp_context* ctx) {
 
 extern "C" void recomp_powf(uint8_t* rdram, recomp_context* ctx) {
     float a = _arg<0, float>(rdram, ctx);
-    float b = _arg<1, float>(rdram, ctx);
+    float b = _arg_float_f14(rdram, ctx);
 
     _return(ctx, std::pow(a, b));
 }

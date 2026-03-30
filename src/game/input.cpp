@@ -558,7 +558,7 @@ bool controller_button_state(int32_t input_id) {
         {
             std::lock_guard lock{ InputState.cur_controllers_mutex };
             for (const auto& controller : InputState.cur_controllers) {
-                ret |= SDL_GameControllerGetButton(controller, button);
+                ret = ret || (SDL_GameControllerGetButton(controller, button) != 0);
             }
         }
 
@@ -617,6 +617,8 @@ float recomp::get_input_analog(const recomp::InputField& field) {
     case InputType::None:
         return 0.0f;
     }
+
+    return 0.0f;
 }
 
 float recomp::get_input_analog(const std::span<const recomp::InputField> fields) {
@@ -648,10 +650,12 @@ bool recomp::get_input_digital(const recomp::InputField& field) {
     case InputType::None:
         return false;
     }
+
+    return false;
 }
 
 bool recomp::get_input_digital(const std::span<const recomp::InputField> fields) {
-    bool ret = 0;
+    bool ret = false;
     for (const auto& field : fields) {
         ret |= get_input_digital(field);
     }

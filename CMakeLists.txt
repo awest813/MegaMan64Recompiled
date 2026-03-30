@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
 
+# Some vendored dependencies still declare very old `cmake_minimum_required`
+# values. CMake 4 removes compatibility below 3.5 unless this floor is raised.
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif()
+
 if (APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version")
 endif()
@@ -94,11 +100,17 @@ endif()
 # RecompiledFuncs - Library containing the primary recompiler output
 add_library(RecompiledFuncs STATIC)
 
+set(MM64_RECOMPILED_FUNC_COMPILE_OPTIONS
+    $<$<C_COMPILER_ID:MSVC>:/bigobj>
+    $<$<C_COMPILER_ID:MSVC>:/wd4101>
+    $<$<NOT:$<C_COMPILER_ID:MSVC>>:-fno-strict-aliasing>
+    $<$<NOT:$<C_COMPILER_ID:MSVC>>:-Wno-unused-variable>
+    $<$<NOT:$<C_COMPILER_ID:MSVC>>:-Wno-implicit-function-declaration>
+)
+
 target_compile_options(RecompiledFuncs PRIVATE
     # -Wno-unused-but-set-variable
-    -fno-strict-aliasing
-    -Wno-unused-variable
-    -Wno-implicit-function-declaration
+    ${MM64_RECOMPILED_FUNC_COMPILE_OPTIONS}
 )
 
 target_include_directories(RecompiledFuncs PRIVATE
@@ -116,9 +128,7 @@ if(MM64_ENABLE_PATCH_OVERLAYS)
 
     target_compile_options(PatchesLib PRIVATE
         # -Wno-unused-but-set-variable
-        -fno-strict-aliasing
-        -Wno-unused-variable
-        -Wno-implicit-function-declaration
+        ${MM64_RECOMPILED_FUNC_COMPILE_OPTIONS}
     )
 
     target_include_directories(PatchesLib PRIVATE
@@ -133,7 +143,9 @@ if(MM64_ENABLE_PATCH_OVERLAYS)
         ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.c
     )
 
-    set_source_files_properties(${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c PROPERTIES COMPILE_FLAGS -fno-strict-aliasing)
+    if(NOT MSVC)
+        set_source_files_properties(${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c PROPERTIES COMPILE_FLAGS -fno-strict-aliasing)
+    endif()
 
     # Build patches elf
     if(NOT DEFINED PATCHES_C_COMPILER)
@@ -250,7 +262,9 @@ target_include_directories(MegaMan64Recompiled PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
+if(MSVC)
+    target_compile_options(MegaMan64Recompiled PRIVATE /bigobj /utf-8)
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
     target_compile_options(MegaMan64Recompiled PRIVATE
         -march=nehalem
         -fno-strict-aliasing

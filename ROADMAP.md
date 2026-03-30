@@ -60,7 +60,7 @@ Goal: Ensure the recompiled version is behaviorally identical to the original N6
 | Priority | Item | Description |
 |----------|------|-------------|
 | High | Flashram save/load | Verify existing Flashram save/load path works correctly for all MM64 save slots. |
-| High | Quicksave re-enable | Fixed: removed `#if 0` gate, added main-thread context save/load, and guarded load against missing save state. |
+| High | Quicksave re-enable | Blocked: the recent re-enable attempt depended on runtime APIs that do not exist in this repo. The build-safe stubs are in place, but full-state quicksave still needs proper runtime support before F5/F7 can ship. |
 | Medium | Save migration | Ensure saves from original N64 hardware can be imported. |
 
 ---
