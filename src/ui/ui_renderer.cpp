@@ -24,6 +24,7 @@
 #include "rt64_render_interface_builders.h"
 
 #include "RmlUi/Core.h"
+#include "RmlUi/Core/Factory.h"
 #include "RmlUi/Debugger.h"
 #include "RmlUi/Core/RenderInterfaceCompatibility.h"
 #include "RmlUi/../../Source/Core/Elements/ElementLabel.h"
@@ -868,12 +869,11 @@ struct UIContext {
         void load_documents() {
             if (!documents.empty()) {
                 Rml::Factory::RegisterEventListenerInstancer(nullptr);
-                for (auto doc : documents) {
-                    doc.second->ReloadStyleSheet();
-                }
 
-                Rml::ReleaseTextures();
-                Rml::ReleaseMemoryPools();
+                Rml::ReleaseTextures(render_interface->GetAdaptedInterface());
+                Rml::ReleaseCompiledGeometry();
+                Rml::Factory::ClearStyleSheetCache();
+                Rml::Factory::ClearTemplateCache();
 
                 if (current_document != nullptr) {
                     current_document->Close();

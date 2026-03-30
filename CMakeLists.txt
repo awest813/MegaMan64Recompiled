@@ -214,6 +214,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/game/quicksaving.cpp
     ${CMAKE_SOURCE_DIR}/src/game/recomp_api.cpp
     ${CMAKE_SOURCE_DIR}/src/game/rom_decompression.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/yaz0.cpp
 
     ${CMAKE_SOURCE_DIR}/src/ui/ui_renderer.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_launcher.cpp
@@ -423,3 +424,15 @@ build_pixel_shader(MegaMan64Recompiled "shaders/InterfacePS.hlsl" "shaders/Inter
 target_sources(MegaMan64Recompiled PRIVATE ${SOURCES})
 
 set_property(TARGET MegaMan64Recompiled PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+option(MM64_BUILD_TESTS "Build unit tests (yaz0, etc.)" ON)
+if(MM64_BUILD_TESTS)
+    enable_testing()
+    add_executable(mm64_test_yaz0
+        ${CMAKE_SOURCE_DIR}/tests/test_yaz0.cpp
+        ${CMAKE_SOURCE_DIR}/src/game/yaz0.cpp
+    )
+    target_include_directories(mm64_test_yaz0 PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_compile_features(mm64_test_yaz0 PRIVATE cxx_std_20)
+    add_test(NAME yaz0_decompress COMMAND mm64_test_yaz0)
+endif()

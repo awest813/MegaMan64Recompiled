@@ -116,7 +116,7 @@ Goal: Modernize the user experience without altering the game's core gameplay.
 | Priority | Item | Description |
 |----------|------|-------------|
 | ~~High~~ | ~~Config error surfacing~~ | ~~`load_config()`/`save_config()` failures are logged to stderr. Show critical config errors in the UI.~~ Fixed: batched dialogs via `zelda64::show_error_message_box()`. |
-| Medium | Font atlas caching | `ui_renderer.cpp` rebuilds the font atlas on every UI reload. Cache to eliminate hitching. |
+| ~~Medium~~ | ~~Font atlas caching~~ | ~~`ui_renderer.cpp` rebuilds the font atlas on every UI reload. Cache to eliminate hitching.~~ Fixed: hot reload (`load_documents`) no longer calls `Rml::ReleaseMemoryPools()`; it releases textures/compiled geometry for the UI render interface and clears style/template caches instead, preserving font engine state. |
 | ~~Medium~~ | ~~Config path caching~~ | ~~`get_app_folder_path()` calls `getenv()` on every invocation. Cache the result.~~ Fixed: result is cached via a static `bool cached` flag. |
 | Medium | Controller binding UI | Allow re-binding all N64 buttons per-port with visual feedback. |
 | Low | Multi-language support | Framework for community translation of UI strings. |
@@ -136,7 +136,7 @@ Goal: Modernize the user experience without altering the game's core gameplay.
 
 | Priority | Area | Description |
 |----------|------|-------------|
-| High | `yaz0_decompress()` | Unit tests for valid data, truncated input, and malformed back-references (validate the new bounds checks). |
+| ~~High~~ | ~~`yaz0_decompress()`~~ | ~~Unit tests for valid data, truncated input, and malformed back-references (validate the new bounds checks).~~ Fixed: logic lives in `src/game/yaz0.cpp`; `tests/test_yaz0.cpp` + `mm64_test_yaz0` (CMake `MM64_BUILD_TESTS`, `ctest -R yaz0`). |
 | High | Config serialisation | Round-trip save/load tests for each config section, including missing keys and corrupt JSON. |
 | Medium | Input mapping | Unit tests for `assign_mapping()` / `get_input_binding()` with edge-case indices. |
 | Medium | ROM validation | Unit tests for `decompress_mm()` with wrong size, wrong header, and correct input. |
