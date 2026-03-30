@@ -43,6 +43,50 @@ function Resolve-ToolPath {
     throw "Unable to find $DisplayName. Set one of the environment variables [$($EnvVarNames -join ', ')] or install it in a standard location."
 }
 
+function Invoke-PatchesCompile {
+    param(
+        [string]$CompilerPath,
+        [string[]]$CompileFlags,
+        [string[]]$PreprocessorFlags
+    )
+
+    $logDir = Join-Path ([System.IO.Path]::GetTempPath()) ("mm64-patches-compile-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $logDir | Out-Null
+    $stdoutPath = Join-Path $logDir "stdout.log"
+    $stderrPath = Join-Path $logDir "stderr.log"
+    $arguments = @($CompileFlags + $PreprocessorFlags + @("print.c", "-MMD", "-MF", "print.d", "-c", "-o", "print.o"))
+    $exitCode = 1
+    $outputText = ""
+
+    try {
+        $process = Start-Process -FilePath $CompilerPath -ArgumentList $arguments -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+        $exitCode = $process.ExitCode
+
+        $stdout = ""
+        $stderr = ""
+        if (Test-Path -LiteralPath $stdoutPath) {
+            $stdout = Get-Content -Raw -LiteralPath $stdoutPath
+        }
+        if (Test-Path -LiteralPath $stderrPath) {
+            $stderr = Get-Content -Raw -LiteralPath $stderrPath
+        }
+        $outputText = ($stdout + $stderr).TrimEnd()
+        if (-not [string]::IsNullOrWhiteSpace($outputText)) {
+            Write-Host $outputText
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $logDir) {
+            Remove-Item -LiteralPath $logDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    return @{
+        ExitCode = $exitCode
+        Output = $outputText
+    }
+}
+
 # PowerShell script to build patches.elf
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $CC = Resolve-ToolPath `
@@ -112,9 +156,41 @@ Push-Location $ScriptDir
 Write-Host "Using clang: $CC"
 Write-Host "Using linker: $LD"
 Write-Host "Compiling print.c..."
-& $CC @CFLAGS @CPPFLAGS "print.c" "-MMD" "-MF" "print.d" "-c" "-o" "print.o"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Failed to compile print.c. Ensure clang supports the MIPS target used by patch overlays."
+$compileResult = Invoke-PatchesCompile -CompilerPath $CC -CompileFlags $CFLAGS -PreprocessorFlags $CPPFLAGS
+$effectiveCFlags = $CFLAGS
+
+# Some LLVM builds reject the legacy -G0 flow by emitting an internal
+# -mips-ssection-threshold argument error. Retry once without -G0.
+if ($compileResult.ExitCode -ne 0 -and $compileResult.Output -match "mips-ssection-threshold=0") {
+    $fallbackCFlags = $effectiveCFlags | Where-Object { $_ -ne "-G0" }
+    if ($fallbackCFlags.Count -ne $effectiveCFlags.Count) {
+        Write-Host "Retrying compile without -G0 for LLVM compatibility..."
+        $compileResult = Invoke-PatchesCompile -CompilerPath $CC -CompileFlags $fallbackCFlags -PreprocessorFlags $CPPFLAGS
+        $effectiveCFlags = $fallbackCFlags
+    }
+}
+
+# Some LLVM distributions reject -mno-abicalls by surfacing an unsupported
+# internal -mgpopt option. Retry once without -mno-abicalls.
+if ($compileResult.ExitCode -ne 0 -and $compileResult.Output -match "Unknown command line argument '-mgpopt'") {
+    $fallbackCFlags = $effectiveCFlags | Where-Object { $_ -ne "-mno-abicalls" }
+    if ($fallbackCFlags.Count -ne $effectiveCFlags.Count) {
+        Write-Host "Retrying compile without -mno-abicalls for LLVM compatibility..."
+        $compileResult = Invoke-PatchesCompile -CompilerPath $CC -CompileFlags $fallbackCFlags -PreprocessorFlags $CPPFLAGS
+        $effectiveCFlags = $fallbackCFlags
+    }
+}
+
+if ($compileResult.ExitCode -ne 0) {
+    if ($compileResult.Output -match 'No available targets are compatible with triple "mips"') {
+        Write-Host "Failed to compile print.c. This clang build does not include the MIPS backend required for patch overlays."
+    }
+    elseif ($compileResult.Output -match "Unknown command line argument '-mgpopt'" -or $compileResult.Output -match "mips-ssection-threshold=0") {
+        Write-Host "Failed to compile print.c. This clang build does not support the legacy MIPS options required by patch overlays."
+    }
+    else {
+        Write-Host "Failed to compile print.c. Ensure clang supports the MIPS target used by patch overlays."
+    }
     Pop-Location
     exit 1
 }

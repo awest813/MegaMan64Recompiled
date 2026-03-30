@@ -62,6 +62,7 @@ After that, go back to the repository root, and run the following commands:
 Finally, you can build the project! :rocket:
 
 On Windows, you can open the repository folder with Visual Studio, and you'll be able to `[build / run / debug]` the project from there.
+The default Visual Studio CMake configurations in this repo are tuned for the MSVC toolchain for better stability on Windows.
 
 If you prefer the command line or you're on a Unix platform you can build the project using CMake:
 

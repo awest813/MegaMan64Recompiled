@@ -6,6 +6,12 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
     set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 endif()
 
+# Keep legacy ASM detection behavior in vendored projects that still route
+# assembly through the MSVC toolchain on Windows.
+if (POLICY CMP0194)
+    cmake_policy(SET CMP0194 OLD)
+endif()
+
 if (APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version")
 endif()
@@ -172,7 +178,7 @@ if(MM64_ENABLE_PATCH_OVERLAYS)
         ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.c
     )
 
-    if(NOT MSVC)
+    if(NOT MM64_MSVC_LIKE)
         set_source_files_properties(${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c PROPERTIES COMPILE_FLAGS -fno-strict-aliasing)
     endif()
 
@@ -289,7 +295,7 @@ if (APPLE)
     list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/main/support_apple.mm)
 endif()
 
-if (MSVC)
+if (MM64_MSVC_LIKE)
     set_source_files_properties(
         ${CMAKE_SOURCE_DIR}/rsp/aspMain.cpp
         PROPERTIES COMPILE_OPTIONS "/wd4305"
@@ -315,7 +321,7 @@ target_include_directories(MegaMan64Recompiled PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-if(MSVC)
+if(MM64_MSVC_LIKE)
     target_compile_options(MegaMan64Recompiled PRIVATE /bigobj /utf-8)
 elseif(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
     target_compile_options(MegaMan64Recompiled PRIVATE
@@ -330,7 +336,7 @@ else()
     )
 endif()
 
-if (MSVC)
+if (MM64_MSVC_LIKE)
     # Disable identical code folding, since this breaks mod function patching as multiple functions can get merged into one.
     target_link_options(MegaMan64Recompiled PRIVATE /OPT:NOICF)
 elseif (APPLE)
