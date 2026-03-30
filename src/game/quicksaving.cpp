@@ -51,9 +51,7 @@ extern "C" void recomp_handle_quicksave_actions(uint8_t* rdram, recomp_context* 
         PTR(OSMesgQueue) quicksave_enter_mq = _arg<0, PTR(OSMesgQueue)>(rdram, ctx);
         PTR(OSMesgQueue) quicksave_exit_mq = _arg<1, PTR(OSMesgQueue)>(rdram, ctx);
 
-        printf("saving context for thread %d\n", TO_PTR(OSThread, ultramodern::this_thread())->id);
-
-        // Save or load the thread's context as needed based on the action.
+        // Tell the main thread that one of the other permanent threads is ready for performing a quicksave action.
         if (action == QuicksaveAction::Save) {
             save_context(ctx);
         }
@@ -64,7 +62,7 @@ extern "C" void recomp_handle_quicksave_actions(uint8_t* rdram, recomp_context* 
             assert(false);
         }
     
-        // Tell the main thread that one of the other permanent threads is ready for performing a quicksave action.
+        // Signal to the main thread that this permanent thread is ready.
         osSendMesg(rdram, quicksave_enter_mq, NULLPTR, OS_MESG_NOBLOCK);
         // Wait for the main thread to signal that other permanent threads are safe to continue.
         osRecvMesg(rdram, quicksave_exit_mq, NULLPTR, OS_MESG_BLOCK);
@@ -109,8 +107,6 @@ extern "C" void recomp_handle_quicksave_actions_main(uint8_t* rdram, recomp_cont
         else {
             assert(false);
         }
-
-        printf("Quicksave action complete\n");
 
         cur_quicksave_action.store(QuicksaveAction::None);
 

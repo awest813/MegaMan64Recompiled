@@ -410,18 +410,97 @@ void release_preload(PreloadContext& context) {
     context = {};
 }
 
-#else
+#else // !_WIN32
+
+#include <cerrno>
+#include <climits>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 
 struct PreloadContext {
-
+    void* view = MAP_FAILED;
+    size_t size = 0;
+    bool locked = false;
 };
 
-// TODO implement on other platforms
 bool preload_executable(PreloadContext& context) {
+    char exe_path[PATH_MAX];
+
+#if defined(__linux__)
+    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+    if (len < 0) {
+        fprintf(stderr, "Failed to read executable path!\n");
+        return false;
+    }
+    exe_path[len] = '\0';
+#elif defined(__APPLE__)
+    uint32_t buf_size = static_cast<uint32_t>(sizeof(exe_path));
+    if (_NSGetExecutablePath(exe_path, &buf_size) != 0) {
+        fprintf(stderr, "Failed to get executable path!\n");
+        return false;
+    }
+#else
+    fprintf(stderr, "preload_executable: unsupported platform\n");
     return false;
+#endif
+
+    int fd = open(exe_path, O_RDONLY);
+    if (fd < 0) {
+        fprintf(stderr, "Failed to open executable for preloading!\n");
+        return false;
+    }
+
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        fprintf(stderr, "Failed to stat executable!\n");
+        close(fd);
+        return false;
+    }
+
+    context.size = static_cast<size_t>(st.st_size);
+    context.view = mmap(nullptr, context.size, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+
+    if (context.view == MAP_FAILED) {
+        fprintf(stderr, "Failed to memory-map executable!\n");
+        context = {};
+        return false;
+    }
+
+    // Attempt a hard lock to keep executable pages in physical memory and avoid
+    // stutters when new code pages are first executed.  Fall back to a soft
+    // prefetch hint when locking fails (e.g. insufficient privileges).
+    if (mlock(context.view, context.size) == 0) {
+        context.locked = true;
+    } else {
+        int mlock_err = errno;
+#ifdef POSIX_MADV_WILLNEED
+        if (posix_madvise(context.view, context.size, POSIX_MADV_WILLNEED) != 0) {
+            fprintf(stderr, "Failed to preload executable pages "
+                    "(mlock errno: %d, madvise errno: %d)\n", mlock_err, errno);
+        }
+#else
+        fprintf(stderr, "Failed to lock executable in memory (mlock errno: %d); "
+                "POSIX_MADV_WILLNEED not available on this platform\n", mlock_err);
+#endif
+    }
+
+    return true;
 }
 
 void release_preload(PreloadContext& context) {
+    if (context.view != MAP_FAILED && context.view != nullptr) {
+        if (context.locked) {
+            munlock(context.view, context.size);
+        }
+        munmap(context.view, context.size);
+    }
+    context = {};
 }
 
 #endif

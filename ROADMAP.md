@@ -25,6 +25,14 @@ The following issues were identified and fixed during a comprehensive codebase a
 | High | `src/game/debug.cpp`, `src/game/scene_table.cpp`, `src/ui/ui_config.cpp` | Removed Majora's Mask placeholder warp data, guarded debug warps against invalid indices, and disabled the warp UI until Mega Man 64 destinations are mapped. |
 | High | `src/game/debug.cpp` | `pending_set_time` now uses `0xFFFFFFFF` as the "no pending" sentinel so valid encoded times don't collide with the reset value. |
 
+## Recently Fixed (Stability Pass 2026-03-30)
+
+| Severity | File | Fix |
+|----------|------|-----|
+| High | `src/main/rt64_render_context.cpp` | `create_render_context()` only logged GPU init failure to stderr. Now also shows a user-facing message box via `zelda64::show_error_message_box()`. |
+| Medium | `src/main/main.cpp` | `preload_executable()` was a no-op stub on Linux/macOS, printing a spurious "Failed to preload" warning. Now implemented via `mmap` + `mlock` with a `posix_madvise(MADV_WILLNEED)` fallback when locking privileges are unavailable. |
+| Low | `src/game/quicksaving.cpp` | Removed two debug `printf` statements that leaked internal thread IDs to stdout in release builds. |
+
 ---
 
 ## Phase 1: N64 Parity & Fidelity
@@ -36,7 +44,7 @@ Goal: Ensure the recompiled version is behaviorally identical to the original N6
 | Priority | Item | Description |
 |----------|------|-------------|
 | High | Scene table accuracy | `src/game/scene_table.cpp` no longer ships Zelda placeholder data; populate it with Mega Man 64 stage/area data to re-enable debug warping. |
-| Medium | `recomp_powf` register access | `src/game/recomp_api.cpp:50` reads `ctx->f14.fl` directly instead of using `_arg<1, float>()`. Restore the commented-out accessor. |
+| ~~Medium~~ | ~~`recomp_powf` register access~~ | ~~`src/game/recomp_api.cpp:50` reads `ctx->f14.fl` directly instead of using `_arg<1, float>()`. Restore the commented-out accessor.~~ Fixed: already uses `_arg<1, float>()`. |
 | Medium | RSP task handling | `get_rsp_microcode()` only handles `M_AUDTASK`. Verify no other RSP task types are used by MM64. |
 
 ### 1B: Audio Parity
@@ -64,7 +72,7 @@ Goal: Leverage RT64 and native hardware for visually improved rendering while re
 
 | Priority | Item | Description |
 |----------|------|-------------|
-| High | Renderer error reporting | `create_render_context()` logs to stderr on failure but continues. Surface GPU driver errors to the user via message box. |
+| ~~High~~ | ~~Renderer error reporting~~ | ~~`create_render_context()` logs to stderr on failure but continues. Surface GPU driver errors to the user via message box.~~ Fixed: now shows a user-facing message box. |
 | High | Internal resolution scaling | Expose a configurable internal resolution multiplier (2x, 4x, 8x) for sharper rendering on high-DPI displays. |
 | Medium | MSAA / SSAA options | RT64 supports multi-sample anti-aliasing. Expose toggle and sample count in the graphics settings UI. |
 | Medium | Dynamic resolution | Investigate RT64's frame-pacing support for consistent performance on variable hardware. |
@@ -108,7 +116,7 @@ Goal: Modernize the user experience without altering the game's core gameplay.
 |----------|------|-------------|
 | High | Config error surfacing | `load_config()`/`save_config()` failures are logged to stderr. Show critical config errors in the UI. |
 | Medium | Font atlas caching | `ui_renderer.cpp` rebuilds the font atlas on every UI reload. Cache to eliminate hitching. |
-| Medium | Config path caching | `get_app_folder_path()` calls `getenv()` on every invocation. Cache the result. |
+| ~~Medium~~ | ~~Config path caching~~ | ~~`get_app_folder_path()` calls `getenv()` on every invocation. Cache the result.~~ Fixed: result is cached via a static `bool cached` flag. |
 | Medium | Controller binding UI | Allow re-binding all N64 buttons per-port with visual feedback. |
 | Low | Multi-language support | Framework for community translation of UI strings. |
 
@@ -117,7 +125,7 @@ Goal: Modernize the user experience without altering the game's core gameplay.
 | Priority | Item | Description |
 |----------|------|-------------|
 | High | Fullscreen toggle (Linux) | `SDL_SetWindowFullscreen` workaround in place. Remove once RT64 gains native fullscreen on Linux. |
-| Medium | Preload executable (non-Windows) | `preload_executable()` is a no-op on Linux/macOS. Implement via `mlock()` / `posix_madvise(MADV_WILLNEED)`. |
+| ~~Medium~~ | ~~Preload executable (non-Windows)~~ | ~~`preload_executable()` is a no-op on Linux/macOS. Implement via `mlock()` / `posix_madvise(MADV_WILLNEED)`.~~ Fixed: implemented via `mmap` + `mlock` with `posix_madvise(MADV_WILLNEED)` fallback. |
 | Medium | `InputState` encapsulation | Refactor the large static struct in `input.cpp` into a proper class with documented thread-safety guarantees. |
 | Low | macOS CI | Build is supported but less tested. Add macOS to CI via GitHub Actions. |
 
