@@ -46,6 +46,20 @@ if (MSVC
     set(MM64_MSVC_LIKE ON)
 endif()
 
+function(mm64_remove_target_compile_option target_name compile_option)
+    if(NOT TARGET "${target_name}")
+        return()
+    endif()
+
+    get_target_property(mm64_target_compile_options "${target_name}" COMPILE_OPTIONS)
+    if(NOT mm64_target_compile_options)
+        return()
+    endif()
+
+    list(REMOVE_ITEM mm64_target_compile_options "${compile_option}")
+    set_property(TARGET "${target_name}" PROPERTY COMPILE_OPTIONS "${mm64_target_compile_options}")
+endfunction()
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-everything /W4")
 endif()
@@ -85,6 +99,13 @@ SET(RMLUI_TESTS_ENABLED OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/RmlUi)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # N64ModernRuntime currently adds a GCC/Clang-only warning suppression that
+    # plain MSVC rejects. Keep the submodule pristine and normalize it here.
+    mm64_remove_target_compile_option(ultramodern "-Wno-unused-parameter")
+    mm64_remove_target_compile_option(librecomp "-Wno-unused-parameter")
+endif()
 
 option(MM64_ENABLE_PATCH_OVERLAYS "Build optional recompiled patch overlays" OFF)
 
