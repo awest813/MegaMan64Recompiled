@@ -1194,6 +1194,35 @@ bool recompui::try_deque_event(SDL_Event& out) {
 std::atomic<recompui::Menu> open_menu = recompui::Menu::Launcher;
 std::atomic<recompui::ConfigSubmenu> open_config_submenu = recompui::ConfigSubmenu::Count;
 
+namespace {
+
+uint32_t keyboard_input_type() {
+    static const uint32_t input_type =
+        recomp::get_default_mapping_for_input(
+            recomp::default_n64_keyboard_mappings,
+            recomp::GameInput::TOGGLE_MENU
+        ).front().input_type;
+    return input_type;
+}
+
+bool keyboard_binding_matches(const recomp::InputField& binding, SDL_Scancode scancode) {
+    return binding.input_type == keyboard_input_type()
+        && binding.input_id == static_cast<int32_t>(scancode);
+}
+
+bool keyboard_event_matches_input(const SDL_KeyboardEvent& key_event, recomp::GameInput input) {
+    auto& binding0 = recomp::get_input_binding(input, 0, recomp::InputDevice::Keyboard);
+    auto& binding1 = recomp::get_input_binding(input, 1, recomp::InputDevice::Keyboard);
+    return keyboard_binding_matches(binding0, key_event.keysym.scancode)
+        || keyboard_binding_matches(binding1, key_event.keysym.scancode);
+}
+
+void process_rml_menu_key(Rml::Context* context, SDL_Keycode keycode) {
+    context->ProcessKeyDown(RmlSDL::ConvertKey(keycode), 0);
+}
+
+} // namespace
+
 int cont_button_to_key(SDL_ControllerButtonEvent& button) {
     // Configurable accept button in menu
     auto menuAcceptBinding0 = recomp::get_input_binding(recomp::GameInput::ACCEPT_MENU, 0, recomp::InputDevice::Controller);
@@ -1340,6 +1369,7 @@ void draw_hook(RT64::RenderCommandList* command_list, RT64::RenderFramebuffer* s
 
     while (recompui::try_deque_event(cur_event)) {
         bool menu_is_open = cur_menu != recompui::Menu::None;
+        bool consumed_keyboard_menu_binding = false;
 
         if (!recomp::all_input_disabled()) {
             // Implement some additional behavior for specific events on top of what RmlUi normally does with them.
@@ -1380,6 +1410,32 @@ void draw_hook(RT64::RenderCommandList* command_list, RT64::RenderFramebuffer* s
             case SDL_EventType::SDL_KEYDOWN:
                 non_mouse_interacted = true;
                 kb_interacted = true;
+                if (menu_is_open) {
+                    recompui::PromptContext* prompt = recompui::get_prompt_context();
+                    SDL_Scancode scancode = cur_event.key.keysym.scancode;
+
+                    if (prompt->open && keyboard_event_matches_input(cur_event.key, recomp::GameInput::TOGGLE_MENU)) {
+                        prompt->on_cancel();
+                        consumed_keyboard_menu_binding = true;
+                        break;
+                    }
+
+                    if (keyboard_event_matches_input(cur_event.key, recomp::GameInput::ACCEPT_MENU)
+                        && scancode != SDL_SCANCODE_RETURN) {
+                        process_rml_menu_key(ui_context->rml.context, SDLK_RETURN);
+                        consumed_keyboard_menu_binding = true;
+                    } else if (!prompt->open
+                        && keyboard_event_matches_input(cur_event.key, recomp::GameInput::APPLY_MENU)
+                        && scancode != SDL_SCANCODE_F) {
+                        process_rml_menu_key(ui_context->rml.context, SDLK_f);
+                        consumed_keyboard_menu_binding = true;
+                    } else if (!prompt->open
+                        && keyboard_event_matches_input(cur_event.key, recomp::GameInput::TOGGLE_MENU)
+                        && scancode != SDL_SCANCODE_ESCAPE) {
+                        process_rml_menu_key(ui_context->rml.context, SDLK_ESCAPE);
+                        consumed_keyboard_menu_binding = true;
+                    }
+                }
                 break;
             case SDL_EventType::SDL_USEREVENT:
                 if (cur_event.user.code == recompui::launcher_autostart_event_code) {
@@ -1419,7 +1475,9 @@ void draw_hook(RT64::RenderCommandList* command_list, RT64::RenderFramebuffer* s
             }
 
             if (menu_is_open) {
-                RmlSDL::InputEventHandler(ui_context->rml.context, cur_event);
+                if (!(cur_event.type == SDL_EventType::SDL_KEYDOWN && consumed_keyboard_menu_binding)) {
+                    RmlSDL::InputEventHandler(ui_context->rml.context, cur_event);
+                }
             }
         }
 
@@ -1429,7 +1487,7 @@ void draw_hook(RT64::RenderCommandList* command_list, RT64::RenderFramebuffer* s
 
             switch (cur_event.type) {
             case SDL_EventType::SDL_KEYDOWN:
-                if (cur_event.key.keysym.scancode == SDL_Scancode::SDL_SCANCODE_ESCAPE) {
+                if (keyboard_event_matches_input(cur_event.key, recomp::GameInput::TOGGLE_MENU)) {
                     open_config = true;
                 }
                 break;
