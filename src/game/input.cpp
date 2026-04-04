@@ -8,44 +8,13 @@
 #include "ultramodern/ultramodern.hpp"
 #include "recomp.h"
 #include "recomp_input.h"
+#include "mm64_input_hotplug.hpp"
 #include "zelda_config.h"
 #include "recomp_ui.h"
 #include "SDL.h"
 #include "promptfont.h"
-#include "GamepadMotion.hpp"
 
 constexpr float axis_threshold = 0.5f;
-
-struct ControllerState {
-    SDL_GameController* controller;
-    std::array<float, 3> latest_accelerometer;
-    GamepadMotion motion;
-    uint32_t prev_gyro_timestamp;
-    ControllerState() : controller{}, latest_accelerometer{}, motion{}, prev_gyro_timestamp{} {
-        motion.Reset();
-        motion.SetCalibrationMode(GamepadMotionHelpers::CalibrationMode::Stillness | GamepadMotionHelpers::CalibrationMode::SensorFusion);
-    };
-};
-
-namespace {
-
-void close_controller_handle(SDL_GameController* controller) {
-    if (controller != nullptr) {
-        SDL_GameControllerClose(controller);
-    }
-}
-
-void reset_controller_state(ControllerState& state, SDL_GameController* controller) {
-    state.controller = controller;
-    state.latest_accelerometer = {};
-    state.prev_gyro_timestamp = 0;
-    state.motion.Reset();
-    state.motion.SetCalibrationMode(
-        GamepadMotionHelpers::CalibrationMode::Stillness
-        | GamepadMotionHelpers::CalibrationMode::SensorFusion);
-}
-
-} // namespace
 
 static struct {
     const Uint8* keys = nullptr;
@@ -160,9 +129,8 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
                 printf("  Instance ID: %d\n", instance_id);
                 {
                     std::lock_guard lock{ InputState.cur_controllers_mutex };
-                    ControllerState& state = InputState.controller_states[instance_id];
-                    close_controller_handle(state.controller);
-                    reset_controller_state(state, controller);
+                    mm64::input_hotplug::handle_controller_added(
+                        InputState.controller_states, InputState.cur_controllers, controller, instance_id);
                 }
 
                 if (SDL_GameControllerHasSensor(controller, SDL_SensorType::SDL_SENSOR_GYRO) && SDL_GameControllerHasSensor(controller, SDL_SensorType::SDL_SENSOR_ACCEL)) {
@@ -180,11 +148,8 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
             printf("Controller removed: %d\n", controller_event->which);
             {
                 std::lock_guard lock{ InputState.cur_controllers_mutex };
-                auto state_it = InputState.controller_states.find(controller_event->which);
-                if (state_it != InputState.controller_states.end()) {
-                    close_controller_handle(state_it->second.controller);
-                    InputState.controller_states.erase(state_it);
-                }
+                mm64::input_hotplug::handle_controller_removed(
+                    InputState.controller_states, InputState.cur_controllers, controller_event->which);
             }
         }
         break;
@@ -494,15 +459,8 @@ void recomp::poll_inputs() {
 
     {
         std::lock_guard lock{ InputState.cur_controllers_mutex };
-        InputState.cur_controllers.clear();
-
-        for (const auto& [id, state] : InputState.controller_states) {
-            (void)id; // Avoid unused variable warning.
-            SDL_GameController* controller = state.controller;
-            if (controller != nullptr) {
-                InputState.cur_controllers.push_back(controller);
-            }
-        }
+        mm64::input_hotplug::rebuild_connected_controllers(
+            InputState.cur_controllers, InputState.controller_states);
     }
 
     // Read the deltas while resetting them to zero.
@@ -525,8 +483,18 @@ void recomp::set_rumble(int controller_num, bool on) {
 }
 
 ultramodern::input::connected_device_info_t recomp::get_connected_device_info(int controller_num) {
+    bool has_connected_controller = false;
+    {
+        std::lock_guard lock{ InputState.cur_controllers_mutex };
+        has_connected_controller = mm64::input_hotplug::has_connected_controller(
+            InputState.cur_controllers, InputState.controller_states);
+    }
+
     switch (controller_num) {
         case 0:
+            if (!has_connected_controller) {
+                break;
+            }
             return ultramodern::input::connected_device_info_t {
                 .connected_device = ultramodern::input::Device::Controller,
                 .connected_pak = ultramodern::input::Pak::RumblePak,

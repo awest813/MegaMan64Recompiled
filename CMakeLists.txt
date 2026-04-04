@@ -291,6 +291,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/main/rt64_render_context.cpp
 
     ${CMAKE_SOURCE_DIR}/src/game/input.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/controller_hotplug.cpp
     ${CMAKE_SOURCE_DIR}/src/game/controls.cpp
     ${CMAKE_SOURCE_DIR}/src/game/config.cpp
     ${CMAKE_SOURCE_DIR}/src/game/scene_table.cpp
@@ -650,4 +651,20 @@ if(MM64_BUILD_TESTS)
     )
     target_compile_features(mm64_test_save_system PRIVATE cxx_std_20)
     add_test(NAME save_system_smoke COMMAND mm64_test_save_system)
+
+    add_executable(mm64_test_controller_hotplug
+        ${CMAKE_SOURCE_DIR}/tests/test_controller_hotplug.cpp
+        ${CMAKE_SOURCE_DIR}/src/game/controller_hotplug.cpp
+    )
+    target_include_directories(mm64_test_controller_hotplug PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/lib/GamepadMotionHelpers
+    )
+    if(WIN32)
+        target_include_directories(mm64_test_controller_hotplug PRIVATE "${MM64_SDL2_INCLUDE_DIR}")
+    elseif(APPLE OR CMAKE_SYSTEM_NAME MATCHES "Linux")
+        target_include_directories(mm64_test_controller_hotplug PRIVATE ${SDL2_INCLUDE_DIRS})
+    endif()
+    target_compile_features(mm64_test_controller_hotplug PRIVATE cxx_std_20)
+    add_test(NAME controller_hotplug_smoke COMMAND mm64_test_controller_hotplug)
 endif()
