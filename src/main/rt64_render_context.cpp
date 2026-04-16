@@ -4,6 +4,7 @@
 
 #define HLSL_CPU
 #include "hle/rt64_application.h"
+#include "hle/rt64_state.h"
 #include "rt64_render_hooks.h"
 
 #include "ultramodern/ultramodern.hpp"
@@ -343,6 +344,11 @@ void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
 
     app->state->rsp->reset();
     app->interpreter->loadUCodeGBI(task->t.ucode & 0x3FFFFFF, task->t.ucode_data & 0x3FFFFFF, true);
+
+    // Enable RT64 extended GBI mode and set the refresh rate before processing display lists.
+    app->state->enableExtendedGBI(RT64_EXTENDED_OPCODE);
+    app->state->setRefreshRate(ultramodern::get_target_framerate(30));
+
     app->processDisplayLists(app->core.RDRAM, task->t.data_ptr & 0x3FFFFFF, 0, true);
 }
 

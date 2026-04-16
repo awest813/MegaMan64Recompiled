@@ -33,23 +33,6 @@ func = "func_8008A02C_6542C"
 before_vram = 0x8008A0E8
 text = "yield_self(rdram);"
 
-#Hacky RT64 FPS fix
-[[patches.hook]]
-func = "func_800276EC_2AEC"
-before_vram = 0x800277AC
-text = """
-		MEM_W(0X8, ctx->r3) =  0xE0525464;
-		MEM_W(0XC, ctx->r3) =  0x10000064;
-		MEM_W(0X10, ctx->r3) = 0x64000009;
-		MEM_W(0X14, ctx->r3) = 0x0000001E;
-		"""
-
-#Hacky RT64 FPS fix
-[[patches.instruction]]
-func = "func_800276EC_2AEC"
-vram = 0x80027798
-value = 0x24620018 # addiu $v0 ,$v1 ,0x18
-
 
 ##Reduce Fog thickness
 #[[patches.instruction]]
