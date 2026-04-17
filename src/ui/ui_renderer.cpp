@@ -1211,8 +1211,8 @@ bool keyboard_binding_matches(const recomp::InputField& binding, SDL_Scancode sc
 }
 
 bool keyboard_event_matches_input(const SDL_KeyboardEvent& key_event, recomp::GameInput input) {
-    auto& binding0 = recomp::get_input_binding(input, 0, recomp::InputDevice::Keyboard);
-    auto& binding1 = recomp::get_input_binding(input, 1, recomp::InputDevice::Keyboard);
+    auto& binding0 = recomp::get_input_binding(0, input, 0, recomp::InputDevice::Keyboard);
+    auto& binding1 = recomp::get_input_binding(0, input, 1, recomp::InputDevice::Keyboard);
     return keyboard_binding_matches(binding0, key_event.keysym.scancode)
         || keyboard_binding_matches(binding1, key_event.keysym.scancode);
 }
@@ -1225,8 +1225,8 @@ void process_rml_menu_key(Rml::Context* context, SDL_Keycode keycode) {
 
 int cont_button_to_key(SDL_ControllerButtonEvent& button) {
     // Configurable accept button in menu
-    auto menuAcceptBinding0 = recomp::get_input_binding(recomp::GameInput::ACCEPT_MENU, 0, recomp::InputDevice::Controller);
-    auto menuAcceptBinding1 = recomp::get_input_binding(recomp::GameInput::ACCEPT_MENU, 1, recomp::InputDevice::Controller);
+    auto menuAcceptBinding0 = recomp::get_input_binding(0, recomp::GameInput::ACCEPT_MENU, 0, recomp::InputDevice::Controller);
+    auto menuAcceptBinding1 = recomp::get_input_binding(0, recomp::GameInput::ACCEPT_MENU, 1, recomp::InputDevice::Controller);
     // note - magic number: 0 is InputType::None
     if ((menuAcceptBinding0.input_type != 0 && button.button == menuAcceptBinding0.input_id) ||
         (menuAcceptBinding1.input_type != 0 && button.button == menuAcceptBinding1.input_id)) {
@@ -1234,8 +1234,8 @@ int cont_button_to_key(SDL_ControllerButtonEvent& button) {
     }
 
     // Configurable apply button in menu
-    auto menuApplyBinding0 = recomp::get_input_binding(recomp::GameInput::APPLY_MENU, 0, recomp::InputDevice::Controller);
-    auto menuApplyBinding1 = recomp::get_input_binding(recomp::GameInput::APPLY_MENU, 1, recomp::InputDevice::Controller);
+    auto menuApplyBinding0 = recomp::get_input_binding(0, recomp::GameInput::APPLY_MENU, 0, recomp::InputDevice::Controller);
+    auto menuApplyBinding1 = recomp::get_input_binding(0, recomp::GameInput::APPLY_MENU, 1, recomp::InputDevice::Controller);
     // note - magic number: 0 is InputType::None
     if ((menuApplyBinding0.input_type != 0 && button.button == menuApplyBinding0.input_id) ||
         (menuApplyBinding1.input_type != 0 && button.button == menuApplyBinding1.input_id)) {
@@ -1243,8 +1243,8 @@ int cont_button_to_key(SDL_ControllerButtonEvent& button) {
     } 
 
     // Allows closing the menu
-    auto menuToggleBinding0 = recomp::get_input_binding(recomp::GameInput::TOGGLE_MENU, 0, recomp::InputDevice::Controller);
-    auto menuToggleBinding1 = recomp::get_input_binding(recomp::GameInput::TOGGLE_MENU, 1, recomp::InputDevice::Controller);
+    auto menuToggleBinding0 = recomp::get_input_binding(0, recomp::GameInput::TOGGLE_MENU, 0, recomp::InputDevice::Controller);
+    auto menuToggleBinding1 = recomp::get_input_binding(0, recomp::GameInput::TOGGLE_MENU, 1, recomp::InputDevice::Controller);
     // note - magic number: 0 is InputType::None
     if ((menuToggleBinding0.input_type != 0 && button.button == menuToggleBinding0.input_id) ||
         (menuToggleBinding1.input_type != 0 && button.button == menuToggleBinding1.input_id)) {
@@ -1492,8 +1492,8 @@ void draw_hook(RT64::RenderCommandList* command_list, RT64::RenderFramebuffer* s
                 }
                 break;
             case SDL_EventType::SDL_CONTROLLERBUTTONDOWN:
-                auto menuToggleBinding0 = recomp::get_input_binding(recomp::GameInput::TOGGLE_MENU, 0, recomp::InputDevice::Controller);
-                auto menuToggleBinding1 = recomp::get_input_binding(recomp::GameInput::TOGGLE_MENU, 1, recomp::InputDevice::Controller);
+                auto menuToggleBinding0 = recomp::get_input_binding(0, recomp::GameInput::TOGGLE_MENU, 0, recomp::InputDevice::Controller);
+                auto menuToggleBinding1 = recomp::get_input_binding(0, recomp::GameInput::TOGGLE_MENU, 1, recomp::InputDevice::Controller);
                 // note - magic number: 0 is InputType::None
                 if ((menuToggleBinding0.input_type != 0 && cur_event.cbutton.button == menuToggleBinding0.input_id) ||
                     (menuToggleBinding1.input_type != 0 && cur_event.cbutton.button == menuToggleBinding1.input_id)) {

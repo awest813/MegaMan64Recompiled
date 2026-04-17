@@ -669,14 +669,14 @@ if(MM64_BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/src/game/yaz0.cpp
     )
     target_include_directories(mm64_test_yaz0 PRIVATE ${CMAKE_SOURCE_DIR}/include)
-    target_compile_features(mm64_test_yaz0 PRIVATE cxx_std_20)
+    set_target_properties(mm64_test_yaz0 PROPERTIES CXX_STANDARD 20)
     add_test(NAME yaz0_decompress COMMAND mm64_test_yaz0)
 
     add_executable(mm64_test_paths
         ${CMAKE_SOURCE_DIR}/tests/test_mm64_paths.cpp
     )
     target_include_directories(mm64_test_paths PRIVATE ${CMAKE_SOURCE_DIR}/include)
-    target_compile_features(mm64_test_paths PRIVATE cxx_std_20)
+    set_target_properties(mm64_test_paths PROPERTIES CXX_STANDARD 20)
     add_test(NAME path_layout_smoke COMMAND mm64_test_paths)
 
     add_executable(mm64_test_launcher_bootstrap
@@ -684,7 +684,7 @@ if(MM64_BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/src/ui/ui_launcher_bootstrap.cpp
     )
     target_include_directories(mm64_test_launcher_bootstrap PRIVATE ${CMAKE_SOURCE_DIR}/include)
-    target_compile_features(mm64_test_launcher_bootstrap PRIVATE cxx_std_20)
+    set_target_properties(mm64_test_launcher_bootstrap PROPERTIES CXX_STANDARD 20)
     add_test(NAME launcher_bootstrap_smoke COMMAND mm64_test_launcher_bootstrap)
 
     add_executable(mm64_test_controls
@@ -699,7 +699,7 @@ if(MM64_BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/thirdparty
         ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/ultramodern/include
     )
-    target_compile_features(mm64_test_controls PRIVATE cxx_std_20)
+    set_target_properties(mm64_test_controls PROPERTIES CXX_STANDARD 20)
     add_test(NAME controls_mapping_smoke COMMAND mm64_test_controls)
 
     add_executable(mm64_test_config
@@ -717,7 +717,7 @@ if(MM64_BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/lib/rt64/src
         ${CMAKE_BINARY_DIR}/lib/N64ModernRuntime/librecomp/miniz
     )
-    target_compile_features(mm64_test_config PRIVATE cxx_std_20)
+    set_target_properties(mm64_test_config PROPERTIES CXX_STANDARD 20)
     if(WIN32)
         target_link_libraries(mm64_test_config PRIVATE shell32 ole32)
     endif()
@@ -731,7 +731,7 @@ if(MM64_BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/ultramodern/include
         ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/thirdparty
     )
-    target_compile_features(mm64_test_aspect_ratio PRIVATE cxx_std_20)
+    set_target_properties(mm64_test_aspect_ratio PROPERTIES CXX_STANDARD 20)
     add_test(NAME aspect_ratio_smoke COMMAND mm64_test_aspect_ratio)
 
     add_executable(mm64_test_rom_decompression
@@ -740,7 +740,7 @@ if(MM64_BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/src/game/yaz0.cpp
     )
     target_include_directories(mm64_test_rom_decompression PRIVATE ${CMAKE_SOURCE_DIR}/include)
-    target_compile_features(mm64_test_rom_decompression PRIVATE cxx_std_20)
+    set_target_properties(mm64_test_rom_decompression PROPERTIES CXX_STANDARD 20)
     add_test(NAME rom_decompression_smoke COMMAND mm64_test_rom_decompression)
 
     add_executable(mm64_test_save_system
@@ -756,7 +756,7 @@ if(MM64_BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/ultramodern/include
         ${CMAKE_SOURCE_DIR}/lib/concurrentqueue
     )
-    target_compile_features(mm64_test_save_system PRIVATE cxx_std_20)
+    set_target_properties(mm64_test_save_system PROPERTIES CXX_STANDARD 20)
     add_test(NAME save_system_smoke COMMAND mm64_test_save_system)
 
     add_executable(mm64_test_controller_hotplug
@@ -772,6 +772,6 @@ if(MM64_BUILD_TESTS)
     elseif(APPLE OR CMAKE_SYSTEM_NAME MATCHES "Linux")
         target_include_directories(mm64_test_controller_hotplug PRIVATE ${SDL2_INCLUDE_DIRS})
     endif()
-    target_compile_features(mm64_test_controller_hotplug PRIVATE cxx_std_20)
+    set_target_properties(mm64_test_controller_hotplug PROPERTIES CXX_STANDARD 20)
     add_test(NAME controller_hotplug_smoke COMMAND mm64_test_controller_hotplug)
 endif()

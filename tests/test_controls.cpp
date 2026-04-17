@@ -90,6 +90,17 @@ bool game_input_disabled() {
     return g_game_input_disabled;
 }
 
+static InputField s_dummy_binding{};
+
+InputField& get_input_binding(int port_index, GameInput input, size_t binding_index, InputDevice device) {
+    (void)port_index; (void)input; (void)binding_index; (void)device;
+    return s_dummy_binding;
+}
+
+void set_input_binding(int port_index, GameInput input, size_t binding_index, InputDevice device, InputField value) {
+    (void)port_index; (void)input; (void)binding_index; (void)device; (void)value;
+}
+
 } // namespace recomp
 
 static void test_input_enum_name_round_trip() {
@@ -102,38 +113,41 @@ static void test_input_enum_name_round_trip() {
 }
 
 static void test_bindings_are_isolated_per_device_and_slot() {
+    constexpr int port = 0;
     const recomp::InputField keyboard_primary{10, 100};
     const recomp::InputField keyboard_secondary{11, 101};
     const recomp::InputField controller_primary{20, 200};
 
-    recomp::set_input_binding(recomp::GameInput::A, 0, recomp::InputDevice::Keyboard, keyboard_primary);
-    recomp::set_input_binding(recomp::GameInput::A, 1, recomp::InputDevice::Keyboard, keyboard_secondary);
-    recomp::set_input_binding(recomp::GameInput::A, 0, recomp::InputDevice::Controller, controller_primary);
+    recomp::set_input_binding(port, recomp::GameInput::A, 0, recomp::InputDevice::Keyboard, keyboard_primary);
+    recomp::set_input_binding(port, recomp::GameInput::A, 1, recomp::InputDevice::Keyboard, keyboard_secondary);
+    recomp::set_input_binding(port, recomp::GameInput::A, 0, recomp::InputDevice::Controller, controller_primary);
 
-    CHECK(recomp::get_input_binding(recomp::GameInput::A, 0, recomp::InputDevice::Keyboard) == keyboard_primary);
-    CHECK(recomp::get_input_binding(recomp::GameInput::A, 1, recomp::InputDevice::Keyboard) == keyboard_secondary);
-    CHECK(recomp::get_input_binding(recomp::GameInput::A, 0, recomp::InputDevice::Controller) == controller_primary);
-    CHECK(recomp::get_input_binding(recomp::GameInput::A, 1, recomp::InputDevice::Controller) == recomp::InputField{});
+    CHECK(recomp::get_input_binding(port, recomp::GameInput::A, 0, recomp::InputDevice::Keyboard) == keyboard_primary);
+    CHECK(recomp::get_input_binding(port, recomp::GameInput::A, 1, recomp::InputDevice::Keyboard) == keyboard_secondary);
+    CHECK(recomp::get_input_binding(port, recomp::GameInput::A, 0, recomp::InputDevice::Controller) == controller_primary);
+    CHECK(recomp::get_input_binding(port, recomp::GameInput::A, 1, recomp::InputDevice::Controller) == recomp::InputField{});
 }
 
 static void test_invalid_binding_index_uses_fresh_dummy_and_preserves_real_bindings() {
+    constexpr int port = 0;
     const recomp::InputField valid_binding{30, 300};
-    recomp::set_input_binding(recomp::GameInput::B, 0, recomp::InputDevice::Keyboard, valid_binding);
+    recomp::set_input_binding(port, recomp::GameInput::B, 0, recomp::InputDevice::Keyboard, valid_binding);
 
-    recomp::InputField& invalid_binding = recomp::get_input_binding(recomp::GameInput::B, 99, recomp::InputDevice::Keyboard);
+    recomp::InputField& invalid_binding = recomp::get_input_binding(port, recomp::GameInput::B, 99, recomp::InputDevice::Keyboard);
     invalid_binding = {99, 999};
 
-    CHECK(recomp::get_input_binding(recomp::GameInput::B, 0, recomp::InputDevice::Keyboard) == valid_binding);
+    CHECK(recomp::get_input_binding(port, recomp::GameInput::B, 0, recomp::InputDevice::Keyboard) == valid_binding);
 
     const recomp::InputField other_invalid_binding =
-        recomp::get_input_binding(recomp::GameInput::START, 42, recomp::InputDevice::Controller);
+        recomp::get_input_binding(port, recomp::GameInput::START, 42, recomp::InputDevice::Controller);
     CHECK(other_invalid_binding == recomp::InputField{});
 
-    recomp::set_input_binding(recomp::GameInput::B, 99, recomp::InputDevice::Keyboard, {77, 777});
-    CHECK(recomp::get_input_binding(recomp::GameInput::B, 0, recomp::InputDevice::Keyboard) == valid_binding);
+    recomp::set_input_binding(port, recomp::GameInput::B, 99, recomp::InputDevice::Keyboard, {77, 777});
+    CHECK(recomp::get_input_binding(port, recomp::GameInput::B, 0, recomp::InputDevice::Keyboard) == valid_binding);
 }
 
 static void test_get_n64_input_merges_sources_and_clamps_axes() {
+    constexpr int port = 0;
     reset_stub_state();
 
     const recomp::InputField keyboard_a{1, 1};
@@ -144,13 +158,13 @@ static void test_get_n64_input_merges_sources_and_clamps_axes() {
     const recomp::InputField controller_y_pos{4, 6};
     const recomp::InputField controller_y_neg{4, 7};
 
-    recomp::set_input_binding(recomp::GameInput::A, 0, recomp::InputDevice::Keyboard, keyboard_a);
-    recomp::set_input_binding(recomp::GameInput::B, 0, recomp::InputDevice::Controller, controller_b);
-    recomp::set_input_binding(recomp::GameInput::X_AXIS_POS, 0, recomp::InputDevice::Keyboard, keyboard_x_pos);
-    recomp::set_input_binding(recomp::GameInput::X_AXIS_NEG, 0, recomp::InputDevice::Keyboard, keyboard_x_neg);
-    recomp::set_input_binding(recomp::GameInput::Y_AXIS_POS, 0, recomp::InputDevice::Keyboard, keyboard_y_pos);
-    recomp::set_input_binding(recomp::GameInput::Y_AXIS_POS, 0, recomp::InputDevice::Controller, controller_y_pos);
-    recomp::set_input_binding(recomp::GameInput::Y_AXIS_NEG, 0, recomp::InputDevice::Controller, controller_y_neg);
+    recomp::set_input_binding(port, recomp::GameInput::A, 0, recomp::InputDevice::Keyboard, keyboard_a);
+    recomp::set_input_binding(port, recomp::GameInput::B, 0, recomp::InputDevice::Controller, controller_b);
+    recomp::set_input_binding(port, recomp::GameInput::X_AXIS_POS, 0, recomp::InputDevice::Keyboard, keyboard_x_pos);
+    recomp::set_input_binding(port, recomp::GameInput::X_AXIS_NEG, 0, recomp::InputDevice::Keyboard, keyboard_x_neg);
+    recomp::set_input_binding(port, recomp::GameInput::Y_AXIS_POS, 0, recomp::InputDevice::Keyboard, keyboard_y_pos);
+    recomp::set_input_binding(port, recomp::GameInput::Y_AXIS_POS, 0, recomp::InputDevice::Controller, controller_y_pos);
+    recomp::set_input_binding(port, recomp::GameInput::Y_AXIS_NEG, 0, recomp::InputDevice::Controller, controller_y_neg);
 
     g_pressed_fields = {keyboard_a, controller_b};
     g_analog_fields = {

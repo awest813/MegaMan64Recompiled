@@ -65,6 +65,28 @@ input_mapping_array g_keyboard_bindings{};
 input_mapping_array g_controller_bindings{};
 std::vector<std::string> g_message_boxes{};
 
+} // anonymous namespace
+
+namespace recomp {
+
+static InputField s_dummy_binding{};
+
+InputField& get_input_binding(int port_index, GameInput input, size_t binding_index, InputDevice device) {
+    (void)port_index; (void)input; (void)binding_index; (void)device;
+    return s_dummy_binding;
+}
+
+void set_input_binding(int port_index, GameInput input, size_t binding_index, InputDevice device, InputField value) {
+    (void)port_index; (void)input; (void)binding_index; (void)device; (void)value;
+}
+
+const DefaultN64Mappings classic_n64_keyboard_mappings{};
+const DefaultN64Mappings classic_n64_controller_mappings{};
+
+} // namespace recomp
+
+namespace {
+
 std::filesystem::path backup_path_for(const std::filesystem::path& path) {
     return std::filesystem::path{ path.string() + ".bak" };
 }
