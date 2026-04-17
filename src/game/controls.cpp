@@ -99,8 +99,6 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
             cur_buttons |= recomp::get_input_digital(controller_num, controller_input_mappings[controller_num][input_index]) ? n64_button_values[i] : 0;
         }
 
-        float joystick_deadzone = recomp::get_joystick_deadzone() / 100.0f;
-
         float joystick_x = recomp::get_input_analog(controller_num, controller_input_mappings[controller_num][(size_t)GameInput::X_AXIS_POS])
                         - recomp::get_input_analog(controller_num, controller_input_mappings[controller_num][(size_t)GameInput::X_AXIS_NEG]);
 

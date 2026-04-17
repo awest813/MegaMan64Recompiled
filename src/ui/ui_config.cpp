@@ -134,6 +134,20 @@ std::string build_binding_hint(recomp::GameInput input, recomp::InputDevice devi
 	return ret;
 }
 
+ultramodern::renderer::GraphicsConfig get_active_graphics_options() {
+	return zelda64::renderer::sanitize_graphics_config(ultramodern::renderer::get_graphics_config());
+}
+
+void sync_control_preset_config(ultramodern::renderer::ControlPreset preset) {
+	auto current_config = ultramodern::renderer::get_graphics_config();
+	if (current_config.control_preset == preset) {
+		return;
+	}
+
+	current_config.control_preset = preset;
+	ultramodern::renderer::set_graphics_config(zelda64::renderer::sanitize_graphics_config(current_config));
+}
+
 } // namespace
 
 template <typename T>
@@ -260,6 +274,7 @@ extern SDL_Window* window;
 #endif
 
 void apply_graphics_config(void) {
+	new_options = zelda64::renderer::sanitize_graphics_config(new_options);
 	ultramodern::renderer::set_graphics_config(new_options);
 #if defined(__linux__) // TODO: Remove once RT64 gets native fullscreen support on Linux
 	if (new_options.wm_option == ultramodern::renderer::WindowMode::Fullscreen) {
@@ -268,10 +283,19 @@ void apply_graphics_config(void) {
 		SDL_SetWindowFullscreen(window,0);
 	}
 #endif
+
+	if (graphics_model_handle) {
+		graphics_model_handle.DirtyVariable("wm_option");
+		graphics_model_handle.DirtyVariable("msaa_option");
+		graphics_model_handle.DirtyVariable("rr_manual_value");
+		graphics_model_handle.DirtyVariable("ds_option");
+		graphics_model_handle.DirtyVariable("ds_info");
+		graphics_model_handle.DirtyVariable("options_changed");
+	}
 }
 
 void close_config_menu() {
-	if (ultramodern::renderer::get_graphics_config() != new_options) {
+	if (get_active_graphics_options() != zelda64::renderer::sanitize_graphics_config(new_options)) {
 		prompt_context.open_prompt(
 			"Graphics options have changed",
 			"Would you like to apply or discard the changes?",
@@ -283,7 +307,7 @@ void close_config_menu() {
 				close_config_menu_impl();
 			},
 			[]() {
-				new_options = ultramodern::renderer::get_graphics_config();
+				new_options = get_active_graphics_options();
 				graphics_model_handle.DirtyAllVariables();
 				close_config_menu_impl();
 			},
@@ -691,7 +715,7 @@ public:
 		}
 
 		ultramodern::sleep_milliseconds(50);
-		new_options = ultramodern::renderer::get_graphics_config();
+		new_options = get_active_graphics_options();
 		bind_config_list_events(constructor);
 
 		constructor.BindFunc("res_option",
@@ -739,7 +763,7 @@ public:
 
 		constructor.BindFunc("options_changed",
 			[](Rml::Variant& out) {
-				out = (ultramodern::renderer::get_graphics_config() != new_options);
+				out = (get_active_graphics_options() != zelda64::renderer::sanitize_graphics_config(new_options));
 			});
 		constructor.BindFunc("ds_info",
 			[](Rml::Variant& out) {
@@ -861,10 +885,12 @@ public:
 				// Apply the selected control preset
 				ultramodern::renderer::ControlPreset preset = new_options.control_preset;
 				zelda64::apply_control_preset(preset);
+				sync_control_preset_config(preset);
 				model_handle.DirtyAllVariables();
 				nav_help_model_handle.DirtyVariable("nav_help__accept");
 				nav_help_model_handle.DirtyVariable("nav_help__exit");
 				graphics_model_handle.DirtyVariable("gfx_help__apply");
+				graphics_model_handle.DirtyVariable("options_changed");
 			});
 
 		constructor.BindEventCallback("set_input_row_focus",
@@ -1127,13 +1153,14 @@ void recompui::update_supported_options() {
 	msaa8x_supported = zelda64::renderer::RT64MaxMSAA() >= RT64::UserConfiguration::Antialiasing::MSAA8X;
 	sample_positions_supported = zelda64::renderer::RT64SamplePositionsSupported();
 	
-	new_options = ultramodern::renderer::get_graphics_config();
+	new_options = get_active_graphics_options();
 
-	graphics_model_handle.DirtyAllVariables();
+	if (graphics_model_handle) {
+		graphics_model_handle.DirtyAllVariables();
+	}
 }
 
 void recompui::toggle_fullscreen() {
 	new_options.wm_option = (new_options.wm_option == ultramodern::renderer::WindowMode::Windowed) ? ultramodern::renderer::WindowMode::Fullscreen : ultramodern::renderer::WindowMode::Windowed;
 	apply_graphics_config();
-	graphics_model_handle.DirtyVariable("wm_option");
 }

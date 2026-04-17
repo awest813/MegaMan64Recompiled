@@ -37,6 +37,7 @@ namespace zelda64 {
         };
 
         std::unique_ptr<ultramodern::renderer::RendererContext> create_render_context(uint8_t *rdram, ultramodern::renderer::WindowHandle window_handle, bool developer_mode);
+        ultramodern::renderer::GraphicsConfig sanitize_graphics_config(const ultramodern::renderer::GraphicsConfig& config);
 
         RT64::UserConfiguration::Antialiasing RT64MaxMSAA();
         bool RT64SamplePositionsSupported();

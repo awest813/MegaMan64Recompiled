@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <memory>
 #include <cstring>
 #include <variant>
@@ -81,6 +82,49 @@ RT64::UserConfiguration::Antialiasing compute_max_supported_aa(RT64::RenderSampl
     return RT64::UserConfiguration::Antialiasing::None;
 }
 
+ultramodern::renderer::Antialiasing clamp_antialiasing_for_device(ultramodern::renderer::Antialiasing option) {
+    using Antialiasing = ultramodern::renderer::Antialiasing;
+
+    if (!sample_positions_supported) {
+        return Antialiasing::None;
+    }
+
+    switch (option) {
+        case Antialiasing::MSAA8X:
+            if (device_max_msaa >= RT64::UserConfiguration::Antialiasing::MSAA8X) {
+                return Antialiasing::MSAA8X;
+            }
+            [[fallthrough]];
+        case Antialiasing::MSAA4X:
+            if (device_max_msaa >= RT64::UserConfiguration::Antialiasing::MSAA4X) {
+                return Antialiasing::MSAA4X;
+            }
+            [[fallthrough]];
+        case Antialiasing::MSAA2X:
+            if (device_max_msaa >= RT64::UserConfiguration::Antialiasing::MSAA2X) {
+                return Antialiasing::MSAA2X;
+            }
+            [[fallthrough]];
+        case Antialiasing::None:
+        case Antialiasing::OptionCount:
+        default:
+            return Antialiasing::None;
+    }
+}
+
+int clamp_downsample_option(int value) {
+    if (value <= 1) {
+        return 1;
+    }
+    if (value <= 2) {
+        return 2;
+    }
+    if (value <= 4) {
+        return 4;
+    }
+    return 8;
+}
+
 RT64::UserConfiguration::AspectRatio to_rt64(ultramodern::renderer::AspectRatio option) {
     switch (option) {
         case ultramodern::renderer::AspectRatio::Original:
@@ -141,6 +185,19 @@ RT64::UserConfiguration::InternalColorFormat to_rt64(ultramodern::renderer::High
     }
 
     return RT64::UserConfiguration::InternalColorFormat::Automatic;
+}
+
+ultramodern::renderer::GraphicsConfig zelda64::renderer::sanitize_graphics_config(const ultramodern::renderer::GraphicsConfig& config) {
+    ultramodern::renderer::GraphicsConfig sanitized = config;
+    sanitized.ds_option = clamp_downsample_option(sanitized.ds_option);
+    sanitized.rr_manual_value = std::clamp(sanitized.rr_manual_value, 20, 360);
+    sanitized.msaa_option = clamp_antialiasing_for_device(sanitized.msaa_option);
+
+    if (sanitized.res_option == ultramodern::renderer::Resolution::Auto) {
+        sanitized.ds_option = 1;
+    }
+
+    return sanitized;
 }
 
 void set_application_user_config(RT64::Application* application, const ultramodern::renderer::GraphicsConfig& config) {
@@ -321,6 +378,15 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
         sample_positions_supported = false;
     }
 
+    const auto sanitized_config = zelda64::renderer::sanitize_graphics_config(cur_config);
+    if (sanitized_config != cur_config) {
+        set_application_user_config(app.get(), sanitized_config);
+        app->updateUserConfig(true);
+        if (sanitized_config.msaa_option != cur_config.msaa_option) {
+            app->updateMultisampling();
+        }
+    }
+
     high_precision_fb_enabled = app->shaderLibrary->usesHDR;
 }
 
@@ -373,19 +439,22 @@ void zelda64::renderer::RT64Context::shutdown() {
 }
 
 bool zelda64::renderer::RT64Context::update_config(const ultramodern::renderer::GraphicsConfig& old_config, const ultramodern::renderer::GraphicsConfig& new_config) {
-    if (old_config == new_config) {
+    const auto sanitized_old_config = zelda64::renderer::sanitize_graphics_config(old_config);
+    const auto sanitized_new_config = zelda64::renderer::sanitize_graphics_config(new_config);
+
+    if (sanitized_old_config == sanitized_new_config) {
         return false;
     }
 
-    if (new_config.wm_option != old_config.wm_option) {
-        app->setFullScreen(new_config.wm_option == ultramodern::renderer::WindowMode::Fullscreen);
+    if (sanitized_new_config.wm_option != sanitized_old_config.wm_option) {
+        app->setFullScreen(sanitized_new_config.wm_option == ultramodern::renderer::WindowMode::Fullscreen);
     }
 
-    set_application_user_config(app.get(), new_config);
+    set_application_user_config(app.get(), sanitized_new_config);
 
     app->updateUserConfig(true);
 
-    if (new_config.msaa_option != old_config.msaa_option) {
+    if (sanitized_new_config.msaa_option != sanitized_old_config.msaa_option) {
         app->updateMultisampling();
     }
     return true;
