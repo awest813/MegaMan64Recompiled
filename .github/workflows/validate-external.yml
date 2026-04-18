@@ -15,5 +15,3 @@ jobs:
   build:
     needs: authorize
     uses: ./.github/workflows/validate.yml
-    secrets:
-      repository: ${{ secrets.SECRET_NAME }}
