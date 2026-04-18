@@ -1,0 +1,15 @@
+{
+    "api_option": "Auto",
+    "ar_option": "Expand",
+    "control_preset": "MegaMan64Optimized",
+    "developer_mode": false,
+    "ds_option": 1,
+    "hpfb_option": "Auto",
+    "hr_option": "Clamp16x9",
+    "msaa_option": "MSAA2X",
+    "res_option": "Auto",
+    "rr_manual_value": 60,
+    "rr_option": "Display",
+    "tf_option": "ThreePoint",
+    "wm_option": "Windowed"
+}

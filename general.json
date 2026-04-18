@@ -1,0 +1,13 @@
+{
+    "analog_cam_mode": "Off",
+    "analog_camera_invert_mode": "InvertNone",
+    "autosave_mode": "On",
+    "background_input_mode": "On",
+    "camera_invert_mode": "InvertY",
+    "debug_mode": false,
+    "gyro_sensitivity": 50,
+    "joystick_deadzone": 5,
+    "mouse_sensitivity": 0,
+    "rumble_strength": 25,
+    "targeting_mode": "Switch"
+}
