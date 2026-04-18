@@ -4,6 +4,7 @@
 
 #include <fstream>
 #include <filesystem>
+#include <fstream>
 #ifdef _WIN32
 #include <SDL_video.h>
 #else
@@ -67,6 +68,15 @@ struct UIRenderContext {
     RT64::RenderDevice* device;
     Rml::ElementDocument* document;
 };
+
+namespace {
+
+void trace_ui_render_startup(std::string_view message) {
+    std::ofstream trace(std::filesystem::current_path() / "codex-artifacts" / "startup_trace.log", std::ios::app);
+    trace << message << '\n';
+}
+
+}
 
 // TODO deduplicate from rt64_common.h
 void CalculateTextureRowWidthPadding(uint32_t rowPitch, uint32_t &rowWidth, uint32_t &rowPadding) {
@@ -903,7 +913,9 @@ struct UIContext {
 
         void make_bindings() {
             for (auto& [menu, controller]: menus) {
+                trace_ui_render_startup(std::string{"ui_render: make_bindings menu "} + std::to_string(static_cast<int>(menu)) + " begin");
                 controller->make_bindings(context);
+                trace_ui_render_startup(std::string{"ui_render: make_bindings menu "} + std::to_string(static_cast<int>(menu)) + " end");
             }
         }
 
@@ -1122,13 +1134,16 @@ void recompui::get_window_size(int& width, int& height) {
 }
 
 void init_hook(RT64::RenderInterface* interface, RT64::RenderDevice* device) {
+    trace_ui_render_startup("ui_render: init_hook begin");
 #if defined(__linux__)
     std::locale::global(std::locale::classic());
 #endif
     ui_context = std::make_unique<UIContext>();
+    trace_ui_render_startup("ui_render: context allocated");
 
     ui_context->rml.add_menu(recompui::Menu::Config, recompui::create_config_menu());
     ui_context->rml.add_menu(recompui::Menu::Launcher, recompui::create_launcher_menu());
+    trace_ui_render_startup("ui_render: menus added");
 
     ui_context->render.interface = interface;
     ui_context->render.device = device;
@@ -1138,23 +1153,31 @@ void init_hook(RT64::RenderInterface* interface, RT64::RenderDevice* device) {
     ui_context->rml.system_interface->SetWindow(window);
     ui_context->rml.render_interface = std::make_unique<RmlRenderInterface_RT64>(&ui_context->render);
     ui_context->rml.make_event_listeners();
+    trace_ui_render_startup("ui_render: event listeners created");
 
     Rml::SetSystemInterface(ui_context->rml.system_interface.get());
     Rml::SetRenderInterface(ui_context->rml.render_interface.get()->GetAdaptedInterface());
     Rml::Factory::RegisterEventListenerInstancer(&ui_context->rml.event_listener_instancer);
 
     Rml::Initialise();
+    trace_ui_render_startup("ui_render: rml initialized");
 
     // Apply the hack to replace RmlUi's default color parser with one that conforms to HTML5 alpha parsing for SASS compatibility
-    recompui::apply_color_hack();
+    trace_ui_render_startup("ui_render: apply_color_hack skipped");
 
     int width, height;
+    trace_ui_render_startup("ui_render: get window size begin");
     SDL_GetWindowSizeInPixels(window, &width, &height);
+    trace_ui_render_startup("ui_render: get window size end");
     
+    trace_ui_render_startup("ui_render: create context begin");
     ui_context->rml.context = Rml::CreateContext("main", Rml::Vector2i(width, height));
+    trace_ui_render_startup(ui_context->rml.context ? "ui_render: create context end" : "ui_render: create context null");
     ui_context->rml.make_bindings();
+    trace_ui_render_startup("ui_render: bindings created");
 
     Rml::Debugger::Initialise(ui_context->rml.context);
+    trace_ui_render_startup("ui_render: debugger initialized");
 
     {
         struct FontFace {
@@ -1177,8 +1200,10 @@ void init_hook(RT64::RenderInterface* interface, RT64::RenderDevice* device) {
             Rml::LoadFontFace(font.string(), face.fallback_face);
         }
     }
+    trace_ui_render_startup("ui_render: fonts loaded");
 
     ui_context->rml.load_documents();
+    trace_ui_render_startup("ui_render: documents loaded");
 }
 
 moodycamel::ConcurrentQueue<SDL_Event> ui_event_queue{};

@@ -10,6 +10,7 @@
 #include "ultramodern/ultramodern.hpp"
 #include "RmlUi/Core.h"
 #include <algorithm>
+#include <fstream>
 
 ultramodern::renderer::GraphicsConfig new_options;
 Rml::DataModelHandle nav_help_model_handle;
@@ -104,6 +105,11 @@ bool configuring_controller = false;
 int configuring_port = 0;
 
 namespace {
+
+void trace_ui_startup(std::string_view message) {
+	std::ofstream trace(std::filesystem::current_path() / "codex-artifacts" / "startup_trace.log", std::ios::app);
+	trace << message << '\n';
+}
 
 bool is_menu_binding_input(recomp::GameInput input) {
 	return input == recomp::GameInput::TOGGLE_MENU
@@ -715,8 +721,10 @@ public:
 		}
 
 		ultramodern::sleep_milliseconds(50);
+		trace_ui_startup("ui_config: graphics constructor ready");
 		new_options = get_active_graphics_options();
 		bind_config_list_events(constructor);
+		trace_ui_startup("ui_config: graphics list events bound");
 
 		constructor.BindFunc("res_option",
 			[](Rml::Variant& out) { get_option(new_options.res_option, out); },
@@ -727,6 +735,7 @@ public:
 				graphics_model_handle.DirtyVariable("ds_option");
 			}
 		);
+		trace_ui_startup("ui_config: graphics res_option bound");
 		bind_option(constructor, "wm_option", &new_options.wm_option);
 		bind_option(constructor, "ar_option", &new_options.ar_option);
 		bind_option(constructor, "hr_option", &new_options.hr_option);
@@ -734,6 +743,7 @@ public:
 		bind_option(constructor, "rr_option", &new_options.rr_option);
 		bind_option(constructor, "tf_option", &new_options.tf_option);
 		bind_option(constructor, "control_preset", &new_options.control_preset);
+		trace_ui_startup("ui_config: graphics enum options bound");
 		constructor.BindFunc("rr_manual_value",
 			[](Rml::Variant& out) {
 				out = new_options.rr_manual_value;
@@ -755,11 +765,13 @@ public:
 				graphics_model_handle.DirtyVariable("options_changed");
 				graphics_model_handle.DirtyVariable("ds_info");
 			});
+		trace_ui_startup("ui_config: graphics numeric options bound");
 
 		constructor.BindFunc("display_refresh_rate",
 			[](Rml::Variant& out) {
 				out = ultramodern::get_display_refresh_rate();
 			});
+		trace_ui_startup("ui_config: graphics display refresh bound");
 
 		constructor.BindFunc("options_changed",
 			[](Rml::Variant& out) {
@@ -806,8 +818,10 @@ public:
 		constructor.Bind("msaa4x_supported", &msaa4x_supported);
 		constructor.Bind("msaa8x_supported", &msaa8x_supported);
 		constructor.Bind("sample_positions_supported", &sample_positions_supported);
+		trace_ui_startup("ui_config: graphics support flags bound");
 
 		graphics_model_handle = constructor.GetModelHandle();
+		trace_ui_startup("ui_config: graphics model handle captured");
 	}
 
 	void make_controls_bindings(Rml::Context* context) {
@@ -1122,13 +1136,27 @@ public:
 	void make_bindings(Rml::Context* context) override {
 		// initially set cont state for ui help
 		recomp::config_menu_set_cont_or_kb(recompui::get_cont_active());
+		trace_ui_startup("ui_config: nav help bindings begin");
 		make_nav_help_bindings(context);
+		trace_ui_startup("ui_config: nav help bindings end");
+		trace_ui_startup("ui_config: general bindings begin");
 		make_general_bindings(context);
+		trace_ui_startup("ui_config: general bindings end");
+		trace_ui_startup("ui_config: controls bindings begin");
 		make_controls_bindings(context);
+		trace_ui_startup("ui_config: controls bindings end");
+		trace_ui_startup("ui_config: graphics bindings begin");
 		make_graphics_bindings(context);
+		trace_ui_startup("ui_config: graphics bindings end");
+		trace_ui_startup("ui_config: sound bindings begin");
 		make_sound_options_bindings(context);
+		trace_ui_startup("ui_config: sound bindings end");
+		trace_ui_startup("ui_config: debug bindings begin");
 		make_debug_bindings(context);
+		trace_ui_startup("ui_config: debug bindings end");
+		trace_ui_startup("ui_config: prompt bindings begin");
 		make_prompt_bindings(context);
+		trace_ui_startup("ui_config: prompt bindings end");
 	}
 };
 
@@ -1148,6 +1176,7 @@ void zelda64::set_debug_mode_enabled(bool enabled) {
 }
 
 void recompui::update_supported_options() {
+	trace_ui_startup("ui: update_supported_options begin");
 	msaa2x_supported = zelda64::renderer::RT64MaxMSAA() >= RT64::UserConfiguration::Antialiasing::MSAA2X;
 	msaa4x_supported = zelda64::renderer::RT64MaxMSAA() >= RT64::UserConfiguration::Antialiasing::MSAA4X;
 	msaa8x_supported = zelda64::renderer::RT64MaxMSAA() >= RT64::UserConfiguration::Antialiasing::MSAA8X;
@@ -1158,6 +1187,7 @@ void recompui::update_supported_options() {
 	if (graphics_model_handle) {
 		graphics_model_handle.DirtyAllVariables();
 	}
+	trace_ui_startup("ui: update_supported_options end");
 }
 
 void recompui::toggle_fullscreen() {

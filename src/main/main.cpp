@@ -5,9 +5,12 @@
 #include <vector>
 #include <array>
 #include <filesystem>
+#include <fstream>
 #include <numeric>
 #include <stdexcept>
 #include <cinttypes>
+#include <exception>
+#include <typeinfo>
 
 #include "nfd.h"
 
@@ -46,6 +49,46 @@
 
 const std::string version_string = "1.0.0-alpha";
 
+namespace {
+
+std::filesystem::path startup_trace_path() {
+    return std::filesystem::current_path() / "codex-artifacts" / "startup_trace.log";
+}
+
+void reset_startup_trace() {
+    std::error_code ec;
+    std::filesystem::create_directories(startup_trace_path().parent_path(), ec);
+    std::ofstream trace(startup_trace_path(), std::ios::trunc);
+    trace << "startup trace begin\n";
+}
+
+void trace_startup(std::string_view message) {
+    std::ofstream trace(startup_trace_path(), std::ios::app);
+    trace << message << '\n';
+    trace.flush();
+}
+
+void install_terminate_trace() {
+    std::set_terminate([]() {
+        trace_startup("terminate: begin");
+        if (auto current = std::current_exception()) {
+            try {
+                std::rethrow_exception(current);
+            } catch (const std::exception& ex) {
+                trace_startup(std::string{"terminate: std::exception type="} + typeid(ex).name());
+                trace_startup(std::string{"terminate: std::exception what="} + ex.what());
+            } catch (...) {
+                trace_startup("terminate: non-std exception");
+            }
+        } else {
+            trace_startup("terminate: no current exception");
+        }
+        std::abort();
+    });
+}
+
+} // namespace
+
 template<typename... Ts>
 void exit_error(const char* str, Ts ...args) {
     char error_message[2048];
@@ -63,6 +106,7 @@ void exit_error(const char* str, Ts ...args) {
 }
 
 ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
+    trace_startup("gfx: create_gfx begin");
     SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
     SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE, "1");
@@ -75,6 +119,7 @@ ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
     }
 
     fprintf(stdout, "SDL Video Driver: %s\n", SDL_GetCurrentVideoDriver());
+    trace_startup("gfx: create_gfx end");
 
     return {};
 }
@@ -82,6 +127,7 @@ ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
 SDL_Window* window;
 
 ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::gfx_data_t) {
+    trace_startup("gfx: create_window begin");
     uint32_t flags = SDL_WINDOW_RESIZABLE;
 
 #if defined(__APPLE__)
@@ -95,6 +141,7 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
     if (window == nullptr) {
         exit_error("Failed to create window: %s\n", SDL_GetError());
     }
+    trace_startup("gfx: window created");
 
 #if defined(__linux__)
     zelda64::set_window_icon(window);
@@ -108,6 +155,7 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
     SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
     SDL_GetWindowWMInfo(window, &wmInfo);
+    trace_startup("gfx: window info queried");
 
 #if defined(_WIN32)
     return ultramodern::renderer::WindowHandle{ wmInfo.info.win.window, GetCurrentThreadId() };
@@ -264,6 +312,7 @@ size_t get_frames_remaining() {
 }
 
 void update_audio_converter() {
+    trace_startup("audio: build converter begin");
     int ret = SDL_BuildAudioCVT(&audio_convert, AUDIO_F32, input_channels, sample_rate, AUDIO_F32, output_channels, output_sample_rate);
 
     if (ret < 0) {
@@ -273,6 +322,7 @@ void update_audio_converter() {
 
     // Calculate the number of samples to discard based on the sample rate ratio and the duplicate frame count.
     discarded_output_frames = duplicated_input_frames * output_sample_rate / sample_rate;
+    trace_startup("audio: build converter end");
 }
 
 void set_frequency(uint32_t freq) {
@@ -282,6 +332,7 @@ void set_frequency(uint32_t freq) {
 }
 
 void reset_audio(uint32_t output_freq) {
+    trace_startup("audio: reset begin");
     SDL_AudioSpec spec_desired{
         .freq = (int)output_freq,
         .format = AUDIO_F32,
@@ -296,13 +347,16 @@ void reset_audio(uint32_t output_freq) {
 
 
     audio_device = SDL_OpenAudioDevice(nullptr, false, &spec_desired, nullptr, 0);
+    trace_startup(audio_device == 0 ? "audio: open device failed" : "audio: open device ok");
     if (audio_device == 0) {
         exit_error("SDL error opening audio device: %s\n", SDL_GetError());
     }
     SDL_PauseAudioDevice(audio_device, 0);
+    trace_startup("audio: device unpaused");
 
     output_sample_rate = output_freq;
     update_audio_converter();
+    trace_startup("audio: reset end");
 }
 
 extern RspUcodeFunc aspMain;
@@ -569,6 +623,9 @@ void disable_texture_pack(recomp::mods::ModContext& context, const recomp::mods:
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
+    reset_startup_trace();
+    install_terminate_trace();
+    trace_startup("main: entered");
     PreloadContext preload_context;
     bool preloaded = false;
 #ifdef _WIN32
@@ -594,6 +651,7 @@ int main(int argc, char** argv) {
     };
 
     try {
+        trace_startup("main: building project version");
         recomp::Version project_version{};
         if (!recomp::Version::from_string(version_string, project_version)) {
             ultramodern::error_handling::message_box(("Invalid version string: " + version_string).c_str());
@@ -602,6 +660,7 @@ int main(int argc, char** argv) {
 
         // Map this executable into memory and try to keep the pages warm to reduce runtime hitching.
         preloaded = preload_executable(preload_context);
+        trace_startup(preloaded ? "main: preload executable ok" : "main: preload executable failed");
         if (!preloaded) {
             fprintf(stderr, "Failed to preload executable!\n");
         }
@@ -615,6 +674,7 @@ int main(int argc, char** argv) {
             exit_error("Failed to initialize native file dialogs.\n");
         }
         nfd_initialized = true;
+        trace_startup("main: NFD initialized");
 
         // Change to a font that supports Japanese characters
         CONSOLE_FONT_INFOEX cfi;
@@ -638,23 +698,31 @@ int main(int argc, char** argv) {
         if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
             exit_error("Failed to initialize SDL audio: %s\n", SDL_GetError());
         }
+        trace_startup("main: SDL audio initialized");
         reset_audio(48000);
+        trace_startup("main: audio reset");
 
         // Source controller mappings file
         if (SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt") < 0) {
             fprintf(stderr, "Failed to load controller mappings: %s\n", SDL_GetError());
         }
+        trace_startup("main: controller mappings attempted");
 
         recomp::register_config_path(zelda64::get_app_folder_path());
+        trace_startup("main: config path registered");
 
         // Register supported games and patches
         for (const auto& game : supported_games) {
             recomp::register_game(game);
         }
+        trace_startup("main: games registered");
 
         zelda64::register_overlays();
+        trace_startup("main: overlays registered");
         zelda64::register_patches();
+        trace_startup("main: patches registered");
         zelda64::load_config();
+        trace_startup("main: config loaded");
 
         recomp::rsp::callbacks_t rsp_callbacks{
             .get_rsp_microcode = get_rsp_microcode,
@@ -704,11 +772,14 @@ int main(int argc, char** argv) {
             .on_disabled = disable_texture_pack,
         };
         auto texture_pack_content_type_id = recomp::mods::register_mod_content_type(texture_pack_content_type);
+        trace_startup("main: mod content type registered");
 
         // Register the .rtz texture pack file format with the previous content type as its only allowed content type.
         recomp::mods::register_mod_container_type("rtz", std::vector{ texture_pack_content_type_id }, false);
+        trace_startup("main: mod container type registered");
 
         recomp::mods::scan_mods();
+        trace_startup("main: mods scanned");
 
         printf("Found mods:\n");
         for (const auto& mod : recomp::mods::get_all_mod_details("mm")) {
@@ -746,15 +817,18 @@ int main(int argc, char** argv) {
             error_handling_callbacks,
             threads_callbacks
         );
+        trace_startup("main: recomp start returned");
     }
 
     catch (const std::exception& e) {
+        trace_startup(std::string{"main: std::exception: "} + e.what());
         fprintf(stderr, "Fatal exception: %s\n", e.what());
         zelda64::show_error_message_box("Fatal Error", e.what());
         cleanup_runtime();
         return EXIT_FAILURE;
     }
     catch (...) {
+        trace_startup("main: unknown exception");
         fprintf(stderr, "Fatal exception: unknown error\n");
         zelda64::show_error_message_box("Fatal Error", "An unexpected error occurred.");
         cleanup_runtime();

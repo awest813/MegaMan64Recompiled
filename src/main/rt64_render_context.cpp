@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <fstream>
 #include <memory>
 #include <cstring>
 #include <variant>
@@ -25,6 +26,15 @@ overloaded(Ts...) -> overloaded<Ts...>;
 static RT64::UserConfiguration::Antialiasing device_max_msaa = RT64::UserConfiguration::Antialiasing::None;
 static bool sample_positions_supported = false;
 static bool high_precision_fb_enabled = false;
+
+namespace {
+
+void trace_render_startup(std::string_view message) {
+    std::ofstream trace(std::filesystem::current_path() / "codex-artifacts" / "startup_trace.log", std::ios::app);
+    trace << message << '\n';
+}
+
+}
 
 static uint8_t DMEM[0x1000];
 static uint8_t IMEM[0x1000];
@@ -271,6 +281,7 @@ ultramodern::renderer::SetupResult map_setup_result(RT64::Application::SetupResu
 }
 
 zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle window_handle, bool debug) {
+    trace_render_startup("render: RT64Context ctor begin");
     static unsigned char dummy_rom_header[0x40];
     recompui::set_render_hooks();
 
@@ -324,10 +335,12 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
 
     // Create the RT64 application.
     app = std::make_unique<RT64::Application>(appCore, appConfig);
+    trace_render_startup("render: application allocated");
 
     // Set initial user config settings based on the current settings.
     auto& cur_config = ultramodern::renderer::get_graphics_config();
     set_application_user_config(app.get(), cur_config);
+    trace_render_startup("render: user config applied");
     app->userConfig.developerMode = debug;
     // Force gbi depth branches to prevent LODs from kicking in.
     app->enhancementConfig.f3dex.forceBranch = true;
@@ -356,10 +369,12 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
     thread_id = window_handle.thread_id;
 #endif
     setup_result = map_setup_result(app->setup(thread_id));
+    trace_render_startup("render: app setup returned");
     if (setup_result != ultramodern::renderer::SetupResult::Success) {
         app = nullptr;
         return;
     }
+    trace_render_startup("render: app setup success");
 
     // Set the application's fullscreen state.
     app->setFullScreen(cur_config.wm_option == ultramodern::renderer::WindowMode::Fullscreen);
@@ -388,6 +403,7 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
     }
 
     high_precision_fb_enabled = app->shaderLibrary->usesHDR;
+    trace_render_startup("render: RT64Context ctor end");
 }
 
 zelda64::renderer::RT64Context::~RT64Context() = default;
@@ -494,6 +510,7 @@ RT64::UserConfiguration::Antialiasing zelda64::renderer::RT64MaxMSAA() {
 }
 
 std::unique_ptr<ultramodern::renderer::RendererContext> zelda64::renderer::create_render_context(uint8_t* rdram, ultramodern::renderer::WindowHandle window_handle, bool developer_mode) {
+    trace_render_startup("render: create_render_context begin");
     auto context = std::make_unique<zelda64::renderer::RT64Context>(rdram, window_handle, developer_mode);
     if (!context->valid()) {
         const char* msg =
@@ -502,6 +519,7 @@ std::unique_ptr<ultramodern::renderer::RendererContext> zelda64::renderer::creat
         fprintf(stderr, "%s\n", msg);
         zelda64::show_error_message_box("Graphics Initialization Failed", msg);
     }
+    trace_render_startup("render: create_render_context end");
     return context;
 }
 
